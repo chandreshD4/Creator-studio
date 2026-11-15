@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AarambhCreatorStudio"
+rootProject.name = "KHUSHAL BLOG"
 include(":app")

@@ -1,25 +1,33 @@
 
 package com.aarambh.creatorstudio
 
+import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -27,327 +35,442 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            CreatorStudioApp()
-        }
-    }
-}
-
-private val Background = Color(0xFF10111B)
-private val SurfaceColor = Color(0xFF1B1D2B)
-private val Accent = Color(0xFF8B5CF6)
-private val TextWhite = Color.White
-
-private enum class AppScreen(
-    val title: String,
-    val emoji: String
-) {
-    HOME("Home", "🏠"),
-    ANALYZER("Analyzer", "🔎"),
-    UPLOAD("Upload", "📤"),
-    CHANNEL("Channel", "▶️"),
-    SETTINGS("Settings", "⚙️")
-}
-
-@Composable
-fun CreatorStudioApp() {
-    var currentScreen by remember {
-        mutableStateOf(AppScreen.HOME)
-    }
-
-    var videoType by remember {
-        mutableStateOf("Long Video")
-    }
-
-    var videoUri by remember {
-        mutableStateOf<Uri?>(null)
-    }
-
-    val videoPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        videoUri = uri
-    }
-
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = Accent,
-            background = Background,
-            surface = SurfaceColor
-        )
-    ) {
-        Scaffold(
-            containerColor = Background,
-            bottomBar = {
-                NavigationBar(
-                    containerColor = SurfaceColor
-                ) {
-                    AppScreen.entries.forEach { screen ->
-                        NavigationBarItem(
-                            selected = currentScreen == screen,
-                            onClick = {
-                                currentScreen = screen
-                            },
-                            icon = {
-                                Text(screen.emoji)
-                            },
-                            label = {
-                                Text(
-                                    screen.title,
-                                    fontSize = 10.sp
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color.White,
-                                selectedTextColor = Color.White,
-                                indicatorColor = Accent
-                            )
-                        )
-                    }
-                }
-            }
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
-                when (currentScreen) {
-                    AppScreen.HOME -> HomeScreen(
-                        videoType = videoType,
-                        onVideoTypeChange = {
-                            videoType = it
-                        },
-                        onNavigate = {
-                            currentScreen = it
-                        }
-                    )
-
-                    AppScreen.ANALYZER -> AnalyzerScreen()
-
-                    AppScreen.UPLOAD -> UploadScreen(
-                        selectedVideo = videoUri,
-                        onSelectVideo = {
-                            videoPicker.launch(
-                                arrayOf("video/*")
-                            )
-                        }
-                    )
-
-                    AppScreen.CHANNEL -> ChannelScreen()
-
-                    AppScreen.SETTINGS -> SettingsScreen()
-                }
-            }
+            KhushalBlogsplash()
         }
     }
 }
 
 @Composable
-private fun AppHeader(
-    subtitle: String
-) {
-    Column(
-        modifier = Modifier.padding(
-            start = 20.dp,
-            end = 20.dp,
-            top = 18.dp,
-            bottom = 12.dp
-        )
-    ) {
-        Text(
-            text = "AARAMBH",
-            color = Accent,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 4.sp
-        )
+fun KhushalBlogSplash() {
+    var showHome by remember { mutableStateOf(false) }
 
-        Text(
-            text = "Creator Studio",
-            color = TextWhite,
-            fontSize = 26.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-
-        Text(
-            text = subtitle,
-            color = Color.LightGray,
-            fontSize = 12.sp
-        )
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(2000)
+        showHome = true
     }
-}
 
-@Composable
-private fun HomeScreen(
-    videoType: String,
-    onVideoTypeChange: (String) -> Unit,
-    onNavigate: (AppScreen) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        AppHeader("Your YouTube Creator Toolkit")
-
+    if (showHome) {
+        KhushalBlogApp()
+    } else {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp)
+                .fillMaxSize()
                 .background(
-                    Brush.linearGradient(
-                        listOf(
-                            Color(0xFF7138D8),
-                            Color(0xFF34216C),
-                            Color(0xFF20264C)
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF101014),
+                            Color(0xFF30101F),
+                            Color(0xFF101014)
                         )
-                    ),
-                    RoundedCornerShape(22.dp)
-                )
-                .padding(20.dp)
+                    )
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            Column {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.apps_logo),
+                    contentDescription = "KHUSHAL BLOG Logo",
+                    modifier = Modifier.size(180.dp),
+                    contentScale = ContentScale.Fit
+                )
+
+                Spacer(Modifier.height(24.dp))
+
                 Text(
-                    "YOUR YOUTUBE WORKSPACE",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp
+                    text = "KHUSHAL BLOG🌺",
+                    color = Color.White,
+                    fontSize = 27.sp,
+                    fontWeight = FontWeight.Bold
                 )
 
                 Spacer(Modifier.height(10.dp))
 
                 Text(
-                    "Grow Your YouTube\nChannel Smarter",
-                    color = Color.White,
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    lineHeight = 32.sp
+                    text = "Create • Analyze • Grow",
+                    color = Color(0xFFFF8EAD),
+                    fontSize = 14.sp
                 )
+            }
+        }
+    }
+}
 
-                Spacer(Modifier.height(8.dp))
+private val AppBackground = Color(0xFF101014)
+private val CardBackground = Color(0xFF202027)
+private val Pink = Color(0xFFE83E70)
+private val Blue = Color(0xFF3478F6)
+private val White = Color(0xFFFFFFFF)
+private val Muted = Color(0xFFB8B8C2)
 
+@Composable
+fun KhushalBlogApp() {
+    var isGujarati by remember { mutableStateOf(false) }
+    var videoType by remember { mutableStateOf("long") }
+    var videoUrl by remember { mutableStateOf("") }
+    var selectedVideo by remember { mutableStateOf<Uri?>(null) }
+    var selectedVideoName by remember { mutableStateOf("") }
+    var showAnalysis by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
+
+    val videoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            selectedVideo = uri
+            selectedVideoName = getVideoName(context, uri)
+            errorMessage = ""
+        }
+    }
+
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            primary = Pink,
+            background = AppBackground,
+            surface = CardBackground
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = AppBackground
+        ) {
+            if (showAnalysis) {
+                AnalysisPage(
+                    isGujarati = isGujarati,
+                    videoName = selectedVideoName,
+                    videoUrl = videoUrl,
+                    videoType = videoType,
+                    onBack = { showAnalysis = false }
+                )
+            } else {
+                HomePage(
+                    isGujarati = isGujarati,
+                    onLanguageChange = { isGujarati = it },
+                    videoType = videoType,
+                    onVideoTypeChange = { videoType = it },
+                    videoUrl = videoUrl,
+                    onUrlChange = {
+                        videoUrl = it
+                        errorMessage = ""
+                    },
+                    selectedVideoName = selectedVideoName,
+                    onChooseVideo = {
+                        videoPicker.launch(arrayOf("video/*"))
+                    },
+                    errorMessage = errorMessage,
+                    onProcess = {
+                        val validUrl = videoUrl.trim().let {
+                            it.startsWith("https://www.youtube.com/") ||
+                            it.startsWith("https://youtube.com/") ||
+                            it.startsWith("https://youtu.be/") ||
+                            it.startsWith("https://m.youtube.com/")
+                        }
+
+                        if (selectedVideo == null && !validUrl) {
+                            errorMessage =
+                                if (isGujarati) {
+                                    "કૃપા કરીને YouTube લિંક દાખલ કરો અથવા વિડિયો પસંદ કરો."
+                                } else {
+                                    "Please enter a YouTube URL or choose a video."
+                                }
+                        } else {
+                            showAnalysis = true
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomePage(
+    isGujarati: Boolean,
+    onLanguageChange: (Boolean) -> Unit,
+    videoType: String,
+    onVideoTypeChange: (String) -> Unit,
+    videoUrl: String,
+    onUrlChange: (String) -> Unit,
+    selectedVideoName: String,
+    onChooseVideo: () -> Unit,
+    errorMessage: String,
+    onProcess: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+    ) {
+        Spacer(Modifier.height(22.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(R.drawable.apps_logo),
+                contentDescription = "KHUSHAL BLOG Logo",
+                modifier = Modifier
+                    .size(62.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Analyze • Optimize • Publish",
-                    color = Color.White.copy(alpha = 0.85f),
-                    fontSize = 13.sp
+                    "KHUSHAL BLOG🌺",
+                    color = White,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    if (isGujarati) "તમારું YouTube ક્રિએટર સ્ટુડિયો"
+                    else "Your YouTube Creator Studio",
+                    color = Muted,
+                    fontSize = 11.sp
                 )
             }
         }
 
         Spacer(Modifier.height(22.dp))
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(CardBackground, RoundedCornerShape(14.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            LanguageButton(
+                text = "English",
+                selected = !isGujarati,
+                modifier = Modifier.weight(1f)
+            ) { onLanguageChange(false) }
+
+            LanguageButton(
+                text = "ગુજરાતી",
+                selected = isGujarati,
+                modifier = Modifier.weight(1f)
+            ) { onLanguageChange(true) }
+        }
+
+        Spacer(Modifier.height(28.dp))
+
         Text(
-            "Choose Video Type",
-            color = TextWhite,
-            fontSize = 18.sp,
+            if (isGujarati) "વિડિયોનો પ્રકાર પસંદ કરો"
+            else "SELECT VIDEO TYPE",
+            color = Muted,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 20.dp)
+            letterSpacing = 1.2.sp
+        )
+
+        Spacer(Modifier.height(11.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            VideoTypeCard(
+                title = if (isGujarati) "લાંબો વિડિયો" else "Long Video",
+                selected = videoType == "long",
+                modifier = Modifier.weight(1f)
+            ) { onVideoTypeChange("long") }
+
+            VideoTypeCard(
+                title = if (isGujarati) "શોર્ટ વિડિયો" else "Short Video",
+                selected = videoType == "short",
+                modifier = Modifier.weight(1f)
+            ) { onVideoTypeChange("short") }
+        }
+
+        Spacer(Modifier.height(27.dp))
+
+        Text(
+            if (isGujarati) "YouTube વિડિયો લિંક"
+            else "YOUTUBE VIDEO URL",
+            color = Muted,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.2.sp
         )
 
         Spacer(Modifier.height(10.dp))
 
         Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            OutlinedTextField(
+                value = videoUrl,
+                onValueChange = onUrlChange,
+                modifier = Modifier.weight(1f),
+                placeholder = {
+                    Text(
+                        if (isGujarati) "YouTube લિંક અહીં પેસ્ટ કરો"
+                        else "Paste YouTube video link",
+                        fontSize = 12.sp,
+                        color = Muted
+                    )
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = White,
+                    unfocusedTextColor = White,
+                    focusedBorderColor = Pink,
+                    unfocusedBorderColor = Color(0xFF454550),
+                    cursorColor = Pink
+                )
+            )
+
+            FilledIconButton(
+                onClick = onChooseVideo,
+                modifier = Modifier.size(54.dp),
+                shape = RoundedCornerShape(15.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = Pink
+                )
+            ) {
+                Text("+", fontSize = 30.sp, color = White)
+            }
+        }
+
+        Spacer(Modifier.height(18.dp))
+
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                .height(170.dp)
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xFF25243A),
+                            Color(0xFF182B42)
+                        )
+                    ),
+                    RoundedCornerShape(18.dp)
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            VideoTypeButton(
-                title = "Long Video",
-                selected = videoType == "Long Video",
-                modifier = Modifier.weight(1f)
-            ) {
-                onVideoTypeChange("Long Video")
+            if (selectedVideoName.isNotBlank()) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text("🎬", fontSize = 36.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        if (isGujarati) "વિડિયો પસંદ કર્યો"
+                        else "VIDEO SELECTED",
+                        color = Color(0xFF9FE5B3),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        selectedVideoName,
+                        color = White,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2
+                    )
+                }
+            } else if (videoUrl.isNotBlank()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("▶", color = White, fontSize = 42.sp)
+                    Text(
+                        if (isGujarati) "YouTube લિંક દાખલ કરી"
+                        else "YOUTUBE LINK ADDED",
+                        color = White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        if (isGujarati) "પ્રોસેસ કરવા તૈયાર"
+                        else "Ready to process",
+                        color = Muted,
+                        fontSize = 11.sp
+                    )
+                }
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("＋", color = Color.LightGray, fontSize = 40.sp)
+                    Text(
+                        if (isGujarati) "વિડિયો અહીં દેખાશે"
+                        else "YOUR VIDEO WILL APPEAR HERE",
+                        color = Muted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        if (isGujarati) "લિંક પેસ્ટ કરો અથવા + દબાવો"
+                        else "Paste a link or tap + to select",
+                        color = Color.Gray,
+                        fontSize = 10.sp
+                    )
+                }
             }
+        }
 
-            VideoTypeButton(
-                title = "YouTube Shorts",
-                selected = videoType == "Shorts",
-                modifier = Modifier.weight(1f)
-            ) {
-                onVideoTypeChange("Shorts")
-            }
+        if (errorMessage.isNotBlank()) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                errorMessage,
+                color = Color(0xFFFF8A9E),
+                fontSize = 12.sp
+            )
         }
 
         Spacer(Modifier.height(22.dp))
 
-        Text(
-            "Creator Tools",
-            color = TextWhite,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        Column(
-            modifier = Modifier.padding(horizontal = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ToolCard(
-                "🔎",
-                "Analyze YouTube Link",
-                "Check a video's available details",
-                Color(0xFF292044)
-            ) {
-                onNavigate(AppScreen.ANALYZER)
-            }
-
-            ToolCard(
-                "📤",
-                "Upload Video",
-                "Choose a video from your phone",
-                Color(0xFF1E3540)
-            ) {
-                onNavigate(AppScreen.UPLOAD)
-            }
-
-            ToolCard(
-                "✍️",
-                "SEO Studio",
-                "Titles, descriptions, tags and keywords",
-                Color(0xFF382B24)
-            ) {
-                onNavigate(AppScreen.ANALYZER)
-            }
-
-            ToolCard(
-                "🖼️",
-                "Thumbnail Studio",
-                "Create YouTube thumbnail designs",
-                Color(0xFF292B43)
-            ) {
-                onNavigate(AppScreen.SETTINGS)
-            }
-
-            ToolCard(
-                "▶️",
-                "Channel Tools",
-                "Connect and manage your channel",
-                Color(0xFF263B30)
-            ) {
-                onNavigate(AppScreen.CHANNEL)
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        Text(
-            "Aarambh Creator Studio",
-            color = Color.Gray,
-            fontSize = 11.sp,
+        Button(
+            onClick = onProcess,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 18.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
+                .height(55.dp),
+            shape = RoundedCornerShape(15.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Pink
+            )
+        ) {
+            Text(
+                if (isGujarati) "વિડિયો પ્રોસેસ કરો"
+                else "PROCESS VIDEO",
+                color = White,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+        }
+
+        Spacer(Modifier.height(25.dp))
     }
 }
 
 @Composable
-private fun VideoTypeButton(
+private fun LanguageButton(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(42.dp),
+        shape = RoundedCornerShape(10.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (selected) Pink else Color.Transparent
+        ),
+        elevation = ButtonDefaults.buttonElevation(0.dp)
+    ) {
+        Text(text, color = White, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun VideoTypeCard(
     title: String,
     selected: Boolean,
     modifier: Modifier = Modifier,
@@ -355,14 +478,16 @@ private fun VideoTypeButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(14.dp),
+        modifier = modifier.height(54.dp),
+        shape = RoundedCornerShape(13.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) Accent else SurfaceColor
-        )
+            containerColor = if (selected) Pink else CardBackground
+        ),
+        contentPadding = PaddingValues(horizontal = 8.dp)
     ) {
         Text(
             title,
+            color = White,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
@@ -370,328 +495,124 @@ private fun VideoTypeButton(
 }
 
 @Composable
-private fun ToolCard(
-    emoji: String,
-    title: String,
-    subtitle: String,
-    cardColor: Color,
-    onClick: () -> Unit
+private fun AnalysisPage(
+    isGujarati: Boolean,
+    videoName: String,
+    videoUrl: String,
+    videoType: String,
+    onBack: () -> Unit
 ) {
-    Card(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Text(
+                if (isGujarati) "← પાછા જાઓ" else "← BACK",
+                color = Pink
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Text(
+            if (isGujarati) "વિડિયો વિશ્લેષણ"
+            else "VIDEO ANALYSIS",
+            color = White,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        Spacer(Modifier.height(18.dp))
+
+        InfoPanel(
+            if (isGujarati) "વિડિયોનો પ્રકાર" else "VIDEO TYPE",
+            if (videoType == "short") "YouTube Shorts" else "Long Video"
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        InfoPanel(
+            if (isGujarati) "વિડિયો" else "SELECTED VIDEO",
+            videoName.ifBlank { videoUrl }
+        )
+
+        Spacer(Modifier.height(18.dp))
+
+        Text(
+            if (isGujarati)
+                "આગળના તબક્કામાં અહીં AI વિશ્લેષણ, બે થંબનેલ, ટાઇટલ, વર્ણન, હેશટેગ અને કીવર્ડ્સ આવશે."
+            else
+                "The next stage will add video analysis, two thumbnail suggestions, title, description, hashtags and keywords.",
+            color = Muted,
+            fontSize = 14.sp,
+            lineHeight = 22.sp
+        )
+
+        Spacer(Modifier.height(18.dp))
+
+        Text(
+            if (isGujarati)
+                "નોંધ: આ સ્ક્રીન હાલમાં પસંદ કરેલી ફાઇલ અથવા લિંક બતાવે છે. વાસ્તવિક YouTube અને AI વિશ્લેષણ હજી જોડવાનું બાકી છે."
+            else
+                "Note: This screen currently shows the selected file or link. Live YouTube and AI analysis still needs to be connected.",
+            color = Color(0xFFFFC36B),
+            fontSize = 12.sp,
+            lineHeight = 19.sp
+        )
+    }
+}
+
+@Composable
+private fun InfoPanel(
+    title: String,
+    value: String
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(17.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = cardColor
+            .background(CardBackground, RoundedCornerShape(14.dp))
+            .padding(16.dp)
+    ) {
+        Text(
+            title,
+            color = Muted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
         )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(17.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                emoji,
-                fontSize = 27.sp
-            )
-
-            Spacer(Modifier.width(15.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    title,
-                    color = TextWhite,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(Modifier.height(4.dp))
-
-                Text(
-                    subtitle,
-                    color = Color.LightGray,
-                    fontSize = 11.sp
-                )
-            }
-
-            Text(
-                "›",
-                color = Color.White,
-                fontSize = 27.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun AnalyzerScreen() {
-    var videoLink by remember {
-        mutableStateOf("")
-    }
-
-    var message by remember {
-        mutableStateOf("")
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        AppHeader("YouTube Video Analyzer")
-
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Text(
-                "Analyze a YouTube Video",
-                color = TextWhite,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                "Paste a public YouTube video link to begin.",
-                color = Color.LightGray,
-                fontSize = 13.sp
-            )
-
-            Spacer(Modifier.height(20.dp))
-
-            OutlinedTextField(
-                value = videoLink,
-                onValueChange = {
-                    videoLink = it
-                    message = ""
-                },
-                modifier = Modifier.fillMaxWidth(),
-                label = {
-                    Text("YouTube Video URL")
-                },
-                placeholder = {
-                    Text("https://www.youtube.com/watch?v=...")
-                },
-                shape = RoundedCornerShape(14.dp),
-                singleLine = true
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            Button(
-                onClick = {
-                    val link = videoLink.trim().lowercase()
-
-                    message = if (
-                        link.startsWith("https://") &&
-                        (link.contains("youtube.com") ||
-                         link.contains("youtu.be"))
-                    ) {
-                        "Link format looks valid. Actual video analysis will be added with YouTube API integration."
-                    } else {
-                        "Please enter a valid YouTube URL."
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text("Check Link Format")
-            }
-
-            if (message.isNotEmpty()) {
-                Spacer(Modifier.height(15.dp))
-
-                Text(
-                    message,
-                    color = Color(0xFFC7B6FF),
-                    fontSize = 13.sp
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            InfoCard(
-                "What will be analyzed later?",
-                "Available video details, title, description, tags where accessible, statistics and transcript when available."
-            )
-        }
-    }
-}
-
-@Composable
-private fun UploadScreen(
-    selectedVideo: Uri?,
-    onSelectVideo: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        AppHeader("Upload Your Video")
-
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            InfoCard(
-                "Select a video from your phone",
-                "Choose your video file. YouTube account connection and direct upload will be added in a later integration stage."
-            )
-
-            Spacer(Modifier.height(20.dp))
-
-            Button(
-                onClick = onSelectVideo,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text("📁  Choose Video")
-            }
-
-            if (selectedVideo != null) {
-                Spacer(Modifier.height(18.dp))
-
-                Text(
-                    "Video selected successfully",
-                    color = Color(0xFF9FE5B3),
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(Modifier.height(6.dp))
-
-                Text(
-                    selectedVideo.lastPathSegment ?: "Selected video",
-                    color = Color.LightGray,
-                    fontSize = 12.sp
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ChannelScreen() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        AppHeader("YouTube Channel")
-
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            InfoCard(
-                "Connect Your YouTube Channel",
-                "Secure Google sign-in and YouTube channel permissions will be implemented using OAuth."
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            Text(
-                "Planned channel features",
-                color = TextWhite,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            InfoCard(
-                "📊 Channel Overview",
-                "View channel details and available statistics."
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            InfoCard(
-                "🎬 My Videos",
-                "View and manage your own uploaded videos."
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            InfoCard(
-                "✏️ Edit Video Details",
-                "Update supported metadata for your own videos after authorization."
-            )
-        }
-    }
-}
-
-@Composable
-private fun SettingsScreen() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        AppHeader("App Settings")
-
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            InfoCard(
-                "Aarambh Creator Studio",
-                "Your YouTube-focused creator toolkit."
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            InfoCard(
-                "Privacy & Permissions",
-                "Account access and file permissions will be handled with user consent."
-            )
-
-            Spacer(Modifier.height(14.dp))
-
-            InfoCard(
-                "App Version",
-                "Version 1.0.0"
-            )
-        }
-    }
-}
-
-@Composable
-private fun InfoCard(
-    title: String,
-    description: String
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = SurfaceColor
+        Spacer(Modifier.height(7.dp))
+        Text(
+            value,
+            color = White,
+            fontSize = 14.sp
         )
-    ) {
-        Column(
-            modifier = Modifier.padding(17.dp)
-        ) {
-            Text(
-                title,
-                color = TextWhite,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
-            )
+    }
+}
 
-            Spacer(Modifier.height(7.dp))
+private fun getVideoName(
+    context: Context,
+    uri: Uri
+): String {
+    var name = "Selected video"
 
-            Text(
-                description,
-                color = Color.LightGray,
-                fontSize = 12.sp,
-                lineHeight = 19.sp
+    context.contentResolver.query(
+        uri,
+        arrayOf(OpenableColumns.DISPLAY_NAME),
+        null,
+        null,
+        null
+    )?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val index = cursor.getColumnIndex(
+                OpenableColumns.DISPLAY_NAME
             )
+            if (index >= 0) {
+                name = cursor.getString(index) ?: name
+            }
         }
     }
+
+    return name
 }
