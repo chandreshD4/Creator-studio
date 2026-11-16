@@ -124,6 +124,7 @@ fun KhushalBlogApp() {
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
+            videoUrl = ""
             selectedVideo = uri
             selectedVideoName = getVideoName(context, uri)
             errorMessage = ""
@@ -158,10 +159,18 @@ fun KhushalBlogApp() {
                     videoUrl = videoUrl,
                     onUrlChange = {
                         videoUrl = it
+                        selectedVideo = null
+                        selectedVideoName = ""
                         errorMessage = ""
                     },
                     selectedVideoUri = selectedVideo,
                     selectedVideoName = selectedVideoName,
+                    onClearPreview = {
+                        videoUrl = ""
+                        selectedVideo = null
+                        selectedVideoName = ""
+                        errorMessage = ""
+                    },
                     onChooseVideo = {
                         videoPicker.launch(arrayOf("video/*"))
                     },
@@ -439,7 +448,8 @@ private fun VideoPreviewBox(
     isGujarati: Boolean,
     videoUrl: String,
     selectedVideoUri: Uri?,
-    selectedVideoName: String
+    selectedVideoName: String,
+    onClearPreview: () -> Unit
 ) {
     val videoId = remember(videoUrl) {
         extractYoutubeVideoId(videoUrl)
@@ -470,6 +480,25 @@ private fun VideoPreviewBox(
             ),
         contentAlignment = Alignment.Center
     ) {
+        if (selectedVideoUri != null || videoId != null || videoUrl.isNotBlank()) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 6.dp, top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("PREVIEW", color = White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                IconButton(
+                    onClick = onClearPreview,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Text("×", color = White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
         when {
             selectedVideoUri != null -> {
                 AndroidView(
@@ -528,19 +557,7 @@ private fun VideoPreviewBox(
                     )
                 }
 
-                Text(
-                    if (isGujarati) "YouTube થંબનેલ પ્રિવ્યૂ"
-                    else "YOUTUBE THUMBNAIL PREVIEW",
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .background(Color(0xAA000000))
-                        .padding(8.dp),
-                    color = White,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
+
             }
 
             videoUrl.isNotBlank() -> {
