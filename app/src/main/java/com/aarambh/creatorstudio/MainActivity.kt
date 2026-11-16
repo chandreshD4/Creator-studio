@@ -662,6 +662,7 @@ private fun VideoTypeCard(
     }
 }
 
+
 @Composable
 private fun AnalysisPage(
     isGujarati: Boolean,
@@ -670,6 +671,32 @@ private fun AnalysisPage(
     videoType: String,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    var title by remember(videoName, videoUrl) {
+        mutableStateOf(videoName.ifBlank { "My YouTube Video" })
+    }
+
+    var description by remember(videoName, videoUrl) {
+        mutableStateOf(
+            "Welcome to my video!\n\n" +
+            "Watch till the end and share your thoughts in the comments.\n\n" +
+            "Like, Share and Subscribe for more videos!"
+        )
+    }
+
+    var tags by remember(videoName, videoUrl) {
+        mutableStateOf("youtube, video, creator, trending, shorts, entertainment")
+    }
+
+    fun copyText(label: String, value: String) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                as android.content.ClipboardManager
+        clipboard.setPrimaryClip(
+            android.content.ClipData.newPlainText(label, value)
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -683,55 +710,201 @@ private fun AnalysisPage(
             )
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         Text(
-            if (isGujarati) "વિડિયો વિશ્લેષણ"
-            else "VIDEO ANALYSIS",
+            if (isGujarati) "ક્રિએટર ડેશબોર્ડ" else "CREATOR DASHBOARD",
             color = White,
-            fontSize = 24.sp,
+            fontSize = 25.sp,
             fontWeight = FontWeight.ExtraBold
         )
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(6.dp))
+
+        Text(
+            if (isGujarati) "તમારા વિડિયો માટે કન્ટેન્ટ તૈયાર કરો"
+            else "Prepare your YouTube content",
+            color = Muted,
+            fontSize = 13.sp
+        )
+
+        Spacer(Modifier.height(20.dp))
 
         InfoPanel(
             if (isGujarati) "વિડિયોનો પ્રકાર" else "VIDEO TYPE",
             if (videoType == "short") "YouTube Shorts" else "Long Video"
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         InfoPanel(
-            if (isGujarati) "વિડિયો" else "SELECTED VIDEO",
+            if (isGujarati) "પસંદ કરેલો વિડિયો" else "SELECTED VIDEO",
             videoName.ifBlank { videoUrl }
         )
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(22.dp))
 
         Text(
-            if (isGujarati) {
-                "આગળના તબક્કામાં અહીં AI વિશ્લેષણ, બે થંબનેલ, ટાઇટલ, વર્ણન, હેશટેગ અને કીવર્ડ્સ આવશે."
-            } else {
-                "The next stage will add video analysis, two thumbnail suggestions, title, description, hashtags and keywords."
-            },
+            if (isGujarati) "થંબનેલ આઇડિયા" else "THUMBNAIL IDEAS",
+            color = White,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .aspectRatio(16f / 10f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF713B9B), Color(0xFFE83E70))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("IDEA 01", color = White, fontSize = 12.sp)
+                    Text(
+                        "YOUR VIDEO",
+                        color = White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .aspectRatio(16f / 10f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF176A91), Color(0xFF3478F6))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("IDEA 02", color = White, fontSize = 12.sp)
+                    Text(
+                        "WATCH NOW",
+                        color = White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        Text(
+            if (isGujarati) "આ ડેમો ડિઝાઇન છે. વાસ્તવિક થંબનેલ જનરેશન પછી ઉમેરાશે."
+            else "Demo designs only. Actual thumbnail generation will be added later.",
             color = Muted,
-            fontSize = 14.sp,
-            lineHeight = 22.sp
+            fontSize = 11.sp
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                if (isGujarati) "વિડિયો ટાઇટલ" else "VIDEO TITLE",
+                color = White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+
+            TextButton(onClick = { copyText("Video Title", title) }) {
+                Text("COPY", color = Pink, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Edit your title") },
+            singleLine = true
+        )
+
+        Spacer(Modifier.height(22.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                if (isGujarati) "વિડિયો વર્ણન" else "DESCRIPTION",
+                color = White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+
+            TextButton(
+                onClick = { copyText("Video Description", description) }
+            ) {
+                Text("COPY", color = Pink, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        OutlinedTextField(
+            value = description,
+            onValueChange = { description = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Edit your description") },
+            minLines = 4
+        )
+
+        Spacer(Modifier.height(22.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                if (isGujarati) "કીવર્ડ્સ અને ટેગ્સ" else "SEO KEYWORDS & TAGS",
+                color = White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+
+            TextButton(onClick = { copyText("YouTube Tags", tags) }) {
+                Text("COPY", color = Pink, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        OutlinedTextField(
+            value = tags,
+            onValueChange = { tags = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Edit your tags") },
+            minLines = 2
         )
 
         Spacer(Modifier.height(18.dp))
 
         Text(
-            if (isGujarati) {
-                "નોંધ: આ સ્ક્રીન હાલમાં પસંદ કરેલી ફાઇલ અથવા લિંક બતાવે છે. વાસ્તવિક YouTube અને AI વિશ્લેષણ હજી જોડવાનું બાકી છે."
-            } else {
-                "Note: This screen currently shows the selected file or link. Live YouTube and AI analysis still needs to be connected."
-            },
+            if (isGujarati) "નોંધ: આ નમૂનાનું કન્ટેન્ટ છે. AI વિશ્લેષણ પછી ઉમેરાશે."
+            else "Note: This is sample content. AI analysis will be added later.",
             color = Color(0xFFFFC36B),
-            fontSize = 12.sp,
-            lineHeight = 19.sp
+            fontSize = 12.sp
         )
+
+        Spacer(Modifier.height(20.dp))
     }
 }
 
