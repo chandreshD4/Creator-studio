@@ -1,9 +1,12 @@
+
 package com.aarambh.creatorstudio
 
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.widget.MediaController
+import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -29,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.AsyncImage
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -155,26 +160,22 @@ fun KhushalBlogApp() {
                         videoUrl = it
                         errorMessage = ""
                     },
+                    selectedVideoUri = selectedVideo,
                     selectedVideoName = selectedVideoName,
                     onChooseVideo = {
                         videoPicker.launch(arrayOf("video/*"))
                     },
                     errorMessage = errorMessage,
                     onProcess = {
-                        val validUrl = videoUrl.trim().let {
-                            it.startsWith("https://www.youtube.com/") ||
-                            it.startsWith("https://youtube.com/") ||
-                            it.startsWith("https://youtu.be/") ||
-                            it.startsWith("https://m.youtube.com/")
-                        }
+                        val validUrl =
+                            extractYoutubeVideoId(videoUrl) != null
 
                         if (selectedVideo == null && !validUrl) {
-                            errorMessage =
-                                if (isGujarati) {
-                                    "કૃપા કરીને YouTube લિંક દાખલ કરો અથવા વિડિયો પસંદ કરો."
-                                } else {
-                                    "Please enter a YouTube URL or choose a video."
-                                }
+                            errorMessage = if (isGujarati) {
+                                "કૃપા કરીને માન્ય YouTube લિંક દાખલ કરો અથવા વિડિયો પસંદ કરો."
+                            } else {
+                                "Please enter a valid YouTube link or choose a video."
+                            }
                         } else {
                             showAnalysis = true
                         }
@@ -193,12 +194,15 @@ private fun HomePage(
     onVideoTypeChange: (String) -> Unit,
     videoUrl: String,
     onUrlChange: (String) -> Unit,
+    selectedVideoUri: Uri?,
     selectedVideoName: String,
     onChooseVideo: () -> Unit,
     errorMessage: String,
     onProcess: () -> Unit
 ) {
-    var languageMenuExpanded by remember { mutableStateOf(false) }
+    var languageMenuExpanded by remember {
+        mutableStateOf(false)
+    }
 
     Column(
         modifier = Modifier
@@ -248,10 +252,7 @@ private fun HomePage(
                         languageMenuExpanded = true
                     }
                 ) {
-                    Text(
-                        text = "🌐",
-                        fontSize = 25.sp
-                    )
+                    Text("🌐", fontSize = 25.sp)
                 }
 
                 DropdownMenu(
@@ -261,9 +262,7 @@ private fun HomePage(
                     }
                 ) {
                     DropdownMenuItem(
-                        text = {
-                            Text("English")
-                        },
+                        text = { Text("English") },
                         trailingIcon = {
                             if (!isGujarati) {
                                 Text(
@@ -280,9 +279,7 @@ private fun HomePage(
                     )
 
                     DropdownMenuItem(
-                        text = {
-                            Text("ગુજરાતી")
-                        },
+                        text = { Text("ગુજરાતી") },
                         trailingIcon = {
                             if (isGujarati) {
                                 Text(
@@ -395,98 +392,12 @@ private fun HomePage(
 
         Spacer(Modifier.height(18.dp))
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(170.dp)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            Color(0xFF25243A),
-                            Color(0xFF182B42)
-                        )
-                    ),
-                    RoundedCornerShape(18.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (selectedVideoName.isNotBlank()) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text("🎬", fontSize = 36.sp)
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Text(
-                        if (isGujarati) "વિડિયો પસંદ કર્યો"
-                        else "VIDEO SELECTED",
-                        color = Color(0xFF9FE5B3),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-
-                    Text(
-                        selectedVideoName,
-                        color = White,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2
-                    )
-                }
-            } else if (videoUrl.isNotBlank()) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        "▶",
-                        color = White,
-                        fontSize = 42.sp
-                    )
-
-                    Text(
-                        if (isGujarati) "YouTube લિંક દાખલ કરી"
-                        else "YOUTUBE LINK ADDED",
-                        color = White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-
-                    Text(
-                        if (isGujarati) "પ્રોસેસ કરવા તૈયાર"
-                        else "Ready to process",
-                        color = Muted,
-                        fontSize = 11.sp
-                    )
-                }
-            } else {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        "＋",
-                        color = Color.LightGray,
-                        fontSize = 40.sp
-                    )
-
-                    Text(
-                        if (isGujarati) "વિડિયો અહીં દેખાશે"
-                        else "YOUR VIDEO WILL APPEAR HERE",
-                        color = Muted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        if (isGujarati) "લિંક પેસ્ટ કરો અથવા + દબાવો"
-                        else "Paste a link or tap + to select",
-                        color = Color.Gray,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-        }
+        VideoPreviewBox(
+            isGujarati = isGujarati,
+            videoUrl = videoUrl,
+            selectedVideoUri = selectedVideoUri,
+            selectedVideoName = selectedVideoName
+        )
 
         if (errorMessage.isNotBlank()) {
             Spacer(Modifier.height(10.dp))
@@ -520,6 +431,190 @@ private fun HomePage(
         }
 
         Spacer(Modifier.height(25.dp))
+    }
+}
+
+@Composable
+private fun VideoPreviewBox(
+    isGujarati: Boolean,
+    videoUrl: String,
+    selectedVideoUri: Uri?,
+    selectedVideoName: String
+) {
+    val videoId = remember(videoUrl) {
+        extractYoutubeVideoId(videoUrl)
+    }
+
+    val thumbnailUrl = remember(videoId) {
+        videoId?.let {
+            "https://i.ytimg.com/vi/$it/hqdefault.jpg"
+        }
+    }
+
+    var thumbnailFailed by remember(thumbnailUrl) {
+        mutableStateOf(false)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(190.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFF25243A),
+                        Color(0xFF182B42)
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            selectedVideoUri != null -> {
+                AndroidView(
+                    factory = { viewContext ->
+                        val player = VideoView(viewContext)
+
+                        player.tag = selectedVideoUri
+
+                        val controller = MediaController(viewContext)
+                        controller.setAnchorView(player)
+
+                        player.setMediaController(controller)
+                        player.setVideoURI(selectedVideoUri)
+
+                        player.setOnPreparedListener { mediaPlayer ->
+                            mediaPlayer.isLooping = false
+                            player.seekTo(1)
+                            player.pause()
+                        }
+
+                        player
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    update = { player ->
+                        if (player.tag != selectedVideoUri) {
+                            player.tag = selectedVideoUri
+                            player.setVideoURI(selectedVideoUri)
+                        }
+                    }
+                )
+            }
+
+            thumbnailUrl != null && !thumbnailFailed -> {
+                AsyncImage(
+                    model = thumbnailUrl,
+                    contentDescription = "YouTube video thumbnail",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    onError = {
+                        thumbnailFailed = true
+                    }
+                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xAA000000)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "▶",
+                        color = White,
+                        fontSize = 27.sp
+                    )
+                }
+
+                Text(
+                    if (isGujarati) "YouTube થંબનેલ પ્રિવ્યૂ"
+                    else "YOUTUBE THUMBNAIL PREVIEW",
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(Color(0xAA000000))
+                        .padding(8.dp),
+                    color = White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            videoUrl.isNotBlank() -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text("⚠️", fontSize = 30.sp)
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Text(
+                        if (isGujarati) {
+                            "થંબનેલ લોડ થઈ શક્યું નથી"
+                        } else {
+                            "THUMBNAIL UNAVAILABLE"
+                        },
+                        color = White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+
+                    Text(
+                        if (isGujarati) {
+                            "લિંક તપાસો અથવા ઇન્ટરનેટ તપાસો"
+                        } else {
+                            "Check the link or internet connection"
+                        },
+                        color = Muted,
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            selectedVideoName.isNotBlank() -> {
+                Text(
+                    selectedVideoName,
+                    color = White,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            else -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "＋",
+                        color = Color.LightGray,
+                        fontSize = 40.sp
+                    )
+
+                    Text(
+                        if (isGujarati) "વિડિયો અહીં દેખાશે"
+                        else "YOUR VIDEO WILL APPEAR HERE",
+                        color = Muted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        if (isGujarati) {
+                            "લિંક પેસ્ટ કરો અથવા + દબાવો"
+                        } else {
+                            "Paste a link or tap + to select"
+                        },
+                        color = Color.Gray,
+                        fontSize = 10.sp
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -649,6 +744,51 @@ private fun InfoPanel(
             color = White,
             fontSize = 14.sp
         )
+    }
+}
+
+private fun extractYoutubeVideoId(rawUrl: String): String? {
+    return try {
+        val uri = Uri.parse(rawUrl.trim())
+        val host = uri.host?.lowercase() ?: return null
+
+        val allowedHosts = setOf(
+            "youtube.com",
+            "www.youtube.com",
+            "m.youtube.com",
+            "youtu.be",
+            "www.youtu.be"
+        )
+
+        if (host !in allowedHosts) return null
+
+        if (uri.scheme != "https" && uri.scheme != "http") {
+            return null
+        }
+
+        val id = if (host == "youtu.be" || host == "www.youtu.be") {
+            uri.pathSegments.firstOrNull()
+        } else {
+            uri.getQueryParameter("v")
+                ?: run {
+                    val segments = uri.pathSegments
+                    val index = segments.indexOfFirst {
+                        it == "shorts" || it == "embed" || it == "live"
+                    }
+
+                    if (index >= 0 && index + 1 < segments.size) {
+                        segments[index + 1]
+                    } else {
+                        null
+                    }
+                }
+        }
+
+        id?.takeIf {
+            Regex("^[A-Za-z0-9_-]{11}$").matches(it)
+        }
+    } catch (e: Exception) {
+        null
     }
 }
 
