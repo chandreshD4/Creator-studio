@@ -206,6 +206,7 @@ private fun HomePage(
     selectedVideoUri: Uri?,
     selectedVideoName: String,
     onChooseVideo: () -> Unit,
+    onClearPreview: () -> Unit,
     errorMessage: String,
     onProcess: () -> Unit
 ) {
@@ -405,7 +406,8 @@ private fun HomePage(
             isGujarati = isGujarati,
             videoUrl = videoUrl,
             selectedVideoUri = selectedVideoUri,
-            selectedVideoName = selectedVideoName
+            selectedVideoName = selectedVideoName,
+        onClearPreview = onClearPreview
         )
 
         if (errorMessage.isNotBlank()) {
