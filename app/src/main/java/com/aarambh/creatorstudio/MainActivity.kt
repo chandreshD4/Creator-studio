@@ -1,10 +1,9 @@
-
 package com.aarambh.creatorstudio
 
 import android.content.Context
 import android.net.Uri
-import android.provider.OpenableColumns
 import android.os.Bundle
+import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -199,6 +198,8 @@ private fun HomePage(
     errorMessage: String,
     onProcess: () -> Unit
 ) {
+    var languageMenuExpanded by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -229,35 +230,75 @@ private fun HomePage(
                     fontSize = 19.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
+
                 Text(
-                    if (isGujarati) "તમારું YouTube ક્રિએટર સ્ટુડિયો"
-                    else "Your YouTube Creator Studio",
+                    if (isGujarati) {
+                        "તમારું YouTube ક્રિએટર સ્ટુડિયો"
+                    } else {
+                        "Your YouTube Creator Studio"
+                    },
                     color = Muted,
                     fontSize = 11.sp
                 )
             }
-        }
 
-        Spacer(Modifier.height(22.dp))
+            Box {
+                IconButton(
+                    onClick = {
+                        languageMenuExpanded = true
+                    }
+                ) {
+                    Text(
+                        text = "🌐",
+                        fontSize = 25.sp
+                    )
+                }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(CardBackground, RoundedCornerShape(14.dp))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
-            LanguageButton(
-                text = "English",
-                selected = !isGujarati,
-                modifier = Modifier.weight(1f)
-            ) { onLanguageChange(false) }
+                DropdownMenu(
+                    expanded = languageMenuExpanded,
+                    onDismissRequest = {
+                        languageMenuExpanded = false
+                    }
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text("English")
+                        },
+                        trailingIcon = {
+                            if (!isGujarati) {
+                                Text(
+                                    "✓",
+                                    color = Pink,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        },
+                        onClick = {
+                            onLanguageChange(false)
+                            languageMenuExpanded = false
+                        }
+                    )
 
-            LanguageButton(
-                text = "ગુજરાતી",
-                selected = isGujarati,
-                modifier = Modifier.weight(1f)
-            ) { onLanguageChange(true) }
+                    DropdownMenuItem(
+                        text = {
+                            Text("ગુજરાતી")
+                        },
+                        trailingIcon = {
+                            if (isGujarati) {
+                                Text(
+                                    "✓",
+                                    color = Pink,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        },
+                        onClick = {
+                            onLanguageChange(true)
+                            languageMenuExpanded = false
+                        }
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(28.dp))
@@ -273,18 +314,24 @@ private fun HomePage(
 
         Spacer(Modifier.height(11.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             VideoTypeCard(
                 title = if (isGujarati) "લાંબો વિડિયો" else "Long Video",
                 selected = videoType == "long",
                 modifier = Modifier.weight(1f)
-            ) { onVideoTypeChange("long") }
+            ) {
+                onVideoTypeChange("long")
+            }
 
             VideoTypeCard(
                 title = if (isGujarati) "શોર્ટ વિડિયો" else "Short Video",
                 selected = videoType == "short",
                 modifier = Modifier.weight(1f)
-            ) { onVideoTypeChange("short") }
+            ) {
+                onVideoTypeChange("short")
+            }
         }
 
         Spacer(Modifier.height(27.dp))
@@ -310,8 +357,11 @@ private fun HomePage(
                 modifier = Modifier.weight(1f),
                 placeholder = {
                     Text(
-                        if (isGujarati) "YouTube લિંક અહીં પેસ્ટ કરો"
-                        else "Paste YouTube video link",
+                        if (isGujarati) {
+                            "YouTube લિંક અહીં પેસ્ટ કરો"
+                        } else {
+                            "Paste YouTube video link"
+                        },
                         fontSize = 12.sp,
                         color = Muted
                     )
@@ -335,7 +385,11 @@ private fun HomePage(
                     containerColor = Pink
                 )
             ) {
-                Text("+", fontSize = 30.sp, color = White)
+                Text(
+                    "+",
+                    fontSize = 30.sp,
+                    color = White
+                )
             }
         }
 
@@ -362,7 +416,9 @@ private fun HomePage(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text("🎬", fontSize = 36.sp)
+
                     Spacer(Modifier.height(8.dp))
+
                     Text(
                         if (isGujarati) "વિડિયો પસંદ કર્યો"
                         else "VIDEO SELECTED",
@@ -370,6 +426,7 @@ private fun HomePage(
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
                     )
+
                     Text(
                         selectedVideoName,
                         color = White,
@@ -379,8 +436,15 @@ private fun HomePage(
                     )
                 }
             } else if (videoUrl.isNotBlank()) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("▶", color = White, fontSize = 42.sp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "▶",
+                        color = White,
+                        fontSize = 42.sp
+                    )
+
                     Text(
                         if (isGujarati) "YouTube લિંક દાખલ કરી"
                         else "YOUTUBE LINK ADDED",
@@ -388,6 +452,7 @@ private fun HomePage(
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
                     )
+
                     Text(
                         if (isGujarati) "પ્રોસેસ કરવા તૈયાર"
                         else "Ready to process",
@@ -396,8 +461,15 @@ private fun HomePage(
                     )
                 }
             } else {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("＋", color = Color.LightGray, fontSize = 40.sp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "＋",
+                        color = Color.LightGray,
+                        fontSize = 40.sp
+                    )
+
                     Text(
                         if (isGujarati) "વિડિયો અહીં દેખાશે"
                         else "YOUR VIDEO WILL APPEAR HERE",
@@ -405,6 +477,7 @@ private fun HomePage(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
+
                     Text(
                         if (isGujarati) "લિંક પેસ્ટ કરો અથવા + દબાવો"
                         else "Paste a link or tap + to select",
@@ -417,6 +490,7 @@ private fun HomePage(
 
         if (errorMessage.isNotBlank()) {
             Spacer(Modifier.height(10.dp))
+
             Text(
                 errorMessage,
                 color = Color(0xFFFF8A9E),
@@ -446,26 +520,6 @@ private fun HomePage(
         }
 
         Spacer(Modifier.height(25.dp))
-    }
-}
-
-@Composable
-private fun LanguageButton(
-    text: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.height(42.dp),
-        shape = RoundedCornerShape(10.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) Pink else Color.Transparent
-        ),
-        elevation = ButtonDefaults.buttonElevation(0.dp)
-    ) {
-        Text(text, color = White, fontSize = 13.sp)
     }
 }
 
@@ -542,10 +596,11 @@ private fun AnalysisPage(
         Spacer(Modifier.height(18.dp))
 
         Text(
-            if (isGujarati)
+            if (isGujarati) {
                 "આગળના તબક્કામાં અહીં AI વિશ્લેષણ, બે થંબનેલ, ટાઇટલ, વર્ણન, હેશટેગ અને કીવર્ડ્સ આવશે."
-            else
-                "The next stage will add video analysis, two thumbnail suggestions, title, description, hashtags and keywords.",
+            } else {
+                "The next stage will add video analysis, two thumbnail suggestions, title, description, hashtags and keywords."
+            },
             color = Muted,
             fontSize = 14.sp,
             lineHeight = 22.sp
@@ -554,10 +609,11 @@ private fun AnalysisPage(
         Spacer(Modifier.height(18.dp))
 
         Text(
-            if (isGujarati)
+            if (isGujarati) {
                 "નોંધ: આ સ્ક્રીન હાલમાં પસંદ કરેલી ફાઇલ અથવા લિંક બતાવે છે. વાસ્તવિક YouTube અને AI વિશ્લેષણ હજી જોડવાનું બાકી છે."
-            else
-                "Note: This screen currently shows the selected file or link. Live YouTube and AI analysis still needs to be connected.",
+            } else {
+                "Note: This screen currently shows the selected file or link. Live YouTube and AI analysis still needs to be connected."
+            },
             color = Color(0xFFFFC36B),
             fontSize = 12.sp,
             lineHeight = 19.sp
@@ -573,7 +629,10 @@ private fun InfoPanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(14.dp))
+            .background(
+                CardBackground,
+                RoundedCornerShape(14.dp)
+            )
             .padding(16.dp)
     ) {
         Text(
@@ -582,7 +641,9 @@ private fun InfoPanel(
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold
         )
+
         Spacer(Modifier.height(7.dp))
+
         Text(
             value,
             color = White,
@@ -608,6 +669,7 @@ private fun getVideoName(
             val index = cursor.getColumnIndex(
                 OpenableColumns.DISPLAY_NAME
             )
+
             if (index >= 0) {
                 name = cursor.getString(index) ?: name
             }
