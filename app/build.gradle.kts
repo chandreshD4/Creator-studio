@@ -1,9 +1,16 @@
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+val keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+val keyAliasValue = System.getenv("ANDROID_KEY_ALIAS") ?: "khushalblog"
+val keyPasswordValue = System.getenv("ANDROID_KEY_PASSWORD") ?: keystorePassword
+val hasStableKeystore =
+    !keystorePath.isNullOrBlank() &&
+    !keystorePassword.isNullOrBlank()
 
 android {
     namespace = "com.aarambh.creatorstudio"
@@ -15,6 +22,25 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+    }
+
+    signingConfigs {
+        create("stable") {
+            if (hasStableKeystore) {
+                storeFile = file(keystorePath!!)
+                storePassword = keystorePassword
+                keyAlias = keyAliasValue
+                keyPassword = keyPasswordValue
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            if (hasStableKeystore) {
+                signingConfig = signingConfigs.getByName("stable")
+            }
+        }
     }
 
     buildFeatures {
@@ -39,8 +65,6 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-
-    // YouTube thumbnail loading
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
