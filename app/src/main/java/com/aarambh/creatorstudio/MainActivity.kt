@@ -158,11 +158,7 @@ fun KhushalBlogApp() {
                     }
                 }
 
-                authMessage = if (isGujarati) {
-                    "Google એકાઉન્ટ સફળતાપૂર્વક જોડાયું."
-                } else {
-                    "Google account connected successfully."
-                }
+                authMessage = "DEBUG: API returned ${account.channels.size} channel(s): ${account.channels.joinToString { it.title }}"
             } else {
                 authMessage = error ?: "Could not load Google account."
             }
