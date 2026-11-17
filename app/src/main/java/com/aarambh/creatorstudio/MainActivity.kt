@@ -14,6 +14,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
+import com.google.android.gms.auth.api.identity.ClearTokenRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
@@ -228,6 +229,37 @@ fun KhushalBlogApp() {
             }
     }
 
+    val disconnectGoogleAccount: () -> Unit = {
+        val oldToken = youtubeAccessToken
+
+        if (oldToken.isNullOrBlank()) {
+            channelInfo = null
+            channelError = ""
+            authMessage = "Account disconnected."
+        } else {
+            authInProgress = true
+            authMessage = "Disconnecting account..."
+
+            Identity.getAuthorizationClient(context)
+                .clearToken(
+                    ClearTokenRequest.builder()
+                        .setToken(oldToken)
+                        .build()
+                )
+                .addOnSuccessListener {
+                    youtubeAccessToken = null
+                    channelInfo = null
+                    channelError = ""
+                    authInProgress = false
+                    authMessage = "Account disconnected. You can connect another account."
+                }
+                .addOnFailureListener { error ->
+                    authInProgress = false
+                    authMessage = "Could not disconnect account: ${error.message}"
+                }
+        }
+    }
+
     LaunchedEffect(youtubeAccessToken) {
         val token = youtubeAccessToken
         if (!token.isNullOrBlank()) {
@@ -279,6 +311,7 @@ fun KhushalBlogApp() {
                     channelLoading = channelLoading,
                     channelError = channelError,
                     onConnect = connectGoogleAccount,
+                    onDisconnect = disconnectGoogleAccount,
                     onBack = { showAccountDashboard = false }
                 )
             } else {
@@ -590,6 +623,7 @@ private fun AccountDashboardPage(
     channelLoading: Boolean,
     channelError: String,
     onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
     onBack: () -> Unit
 ) {
     var notice by remember { mutableStateOf<String?>(null) }
@@ -671,6 +705,20 @@ private fun AccountDashboardPage(
                         color = White
                     )
                 }
+                OutlinedButton(
+                    onClick = onDisconnect,
+                    enabled = isYoutubeAuthorized && !authInProgress,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFFFF5555)
+                    )
+                ) {
+                    Text(
+                        if (isGujarati) "એકાઉન્ટ ડિસ્કનેક્ટ કરો"
+                        else "DISCONNECT ACCOUNT"
+                    )
+                }
+
                 if (authMessage.isNotBlank()) {
                     Spacer(Modifier.height(10.dp))
                     Text(
