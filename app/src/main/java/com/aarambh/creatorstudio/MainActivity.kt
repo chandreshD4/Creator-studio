@@ -10,6 +10,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
+import com.google.android.gms.auth.api.identity.AuthorizationRequest
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -120,6 +125,40 @@ fun KhushalBlogApp() {
     var errorMessage by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+    var youtubeAccessToken by remember { mutableStateOf<String?>(null) }
+    var authMessage by remember { mutableStateOf("") }
+    var authInProgress by remember { mutableStateOf(false) }
+
+    val authorizationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        authInProgress = false
+        try {
+            val authorizationResult =
+                Identity.getAuthorizationClient(context)
+                    .getAuthorizationResultFromIntent(result.data)
+
+            val token = authorizationResult.accessToken
+            if (!token.isNullOrBlank()) {
+                youtubeAccessToken = token
+                authMessage = if (isGujarati) {
+                    "YouTube પરવાનગી સફળતાપૂર્વક મળી."
+                } else {
+                    "YouTube permission granted successfully."
+                }
+            } else {
+                authMessage = if (isGujarati) {
+                    "પરવાનગી મળી નથી. ફરી પ્રયાસ કરો."
+                } else {
+                    "Permission was not granted. Please try again."
+                }
+            }
+        } catch (e: ApiException) {
+            authMessage = "Google authorization failed (${e.statusCode}). Please try again."
+        } catch (e: Exception) {
+            authMessage = "Google authorization failed. Please try again."
+        }
+    }
 
     val videoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -130,6 +169,52 @@ fun KhushalBlogApp() {
             selectedVideoName = getVideoName(context, uri)
             errorMessage = ""
         }
+    }
+
+    val connectGoogleAccount: () -> Unit = {
+        authInProgress = true
+        authMessage = ""
+
+        val request = AuthorizationRequest.builder()
+            .setRequestedScopes(
+                listOf(Scope("https://www.googleapis.com/auth/youtube.upload"))
+            )
+            .build()
+
+        Identity.getAuthorizationClient(context)
+            .authorize(request)
+            .addOnSuccessListener { authorizationResult ->
+                if (authorizationResult.hasResolution()) {
+                    val pendingIntent = authorizationResult.pendingIntent
+                    if (pendingIntent != null) {
+                        authorizationLauncher.launch(
+                            IntentSenderRequest.Builder(
+                                pendingIntent.intentSender
+                            ).build()
+                        )
+                    } else {
+                        authInProgress = false
+                        authMessage = "Google authorization could not be started."
+                    }
+                } else {
+                    authInProgress = false
+                    val token = authorizationResult.accessToken
+                    if (!token.isNullOrBlank()) {
+                        youtubeAccessToken = token
+                        authMessage = if (isGujarati) {
+                            "YouTube પરવાનગી સફળતાપૂર્વક મળી."
+                        } else {
+                            "YouTube permission granted successfully."
+                        }
+                    } else {
+                        authMessage = "Google did not provide permission."
+                    }
+                }
+            }
+            .addOnFailureListener {
+                authInProgress = false
+                authMessage = "Google authorization failed. Please try again."
+            }
     }
 
     MaterialTheme(
@@ -154,6 +239,10 @@ fun KhushalBlogApp() {
             } else if (showAccountDashboard) {
                 AccountDashboardPage(
                     isGujarati = isGujarati,
+                    isYoutubeAuthorized = !youtubeAccessToken.isNullOrBlank(),
+                    authInProgress = authInProgress,
+                    authMessage = authMessage,
+                    onConnect = connectGoogleAccount,
                     onBack = { showAccountDashboard = false }
                 )
             } else {
@@ -458,6 +547,10 @@ private fun HomePage(
 @Composable
 private fun AccountDashboardPage(
     isGujarati: Boolean,
+    isYoutubeAuthorized: Boolean,
+    authInProgress: Boolean,
+    authMessage: String,
+    onConnect: () -> Unit,
     onBack: () -> Unit
 ) {
     var notice by remember { mutableStateOf<String?>(null) }
@@ -511,28 +604,40 @@ private fun AccountDashboardPage(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (isGujarati) "એકાઉન્ટની સ્થિતિ: જોડાયેલ નથી"
-                    else "Account status: Not connected",
-                    color = Muted,
+                    if (isYoutubeAuthorized) {
+                        if (isGujarati) "YouTube પરવાનગી મળી ગઈ છે"
+                        else "YouTube permission granted"
+                    } else {
+                        if (isGujarati) "એકાઉન્ટની સ્થિતિ: જોડાયેલ નથી"
+                        else "Account status: Not connected"
+                    },
+                    color = if (isYoutubeAuthorized) Color(0xFF4CAF50) else Muted,
                     fontSize = 13.sp
                 )
                 Spacer(Modifier.height(14.dp))
                 Button(
-                    onClick = {
-                        notice = if (isGujarati)
-                            "Google એકાઉન્ટ કનેક્શન આગળના તબક્કામાં સેટ થશે."
-                        else
-                            "Google account connection will be configured in the next step."
-                    },
+                    onClick = onConnect,
+                    enabled = !authInProgress,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Pink
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = Pink)
                 ) {
                     Text(
-                        if (isGujarati) "એકાઉન્ટ જોડો"
-                        else "CONNECT ACCOUNT",
+                        if (authInProgress) {
+                            if (isGujarati) "કનેક્ટ થઈ રહ્યું છે..." else "CONNECTING..."
+                        } else if (isYoutubeAuthorized) {
+                            if (isGujarati) "ફરીથી જોડો" else "RECONNECT ACCOUNT"
+                        } else {
+                            if (isGujarati) "એકાઉન્ટ જોડો" else "CONNECT ACCOUNT"
+                        },
                         color = White
+                    )
+                }
+                if (authMessage.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        authMessage,
+                        color = if (isYoutubeAuthorized) Color(0xFF4CAF50) else Muted,
+                        fontSize = 12.sp
                     )
                 }
             }
