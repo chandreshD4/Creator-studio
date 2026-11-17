@@ -1,5 +1,6 @@
 package com.aarambh.creatorstudio
 
+import android.accounts.Account
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
@@ -14,7 +15,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
-import com.google.android.gms.auth.api.identity.ClearTokenRequest
+import com.google.android.gms.auth.api.identity.RevokeAccessRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
@@ -263,12 +264,19 @@ fun KhushalBlogApp() {
             authInProgress = true
             authMessage = "Disconnecting ${account.email}..."
 
-            Identity.getAuthorizationClient(context)
-                .clearToken(
-                    ClearTokenRequest.builder()
-                        .setToken(account.accessToken)
-                        .build()
+            val revokeRequest = RevokeAccessRequest.builder()
+                .setAccount(Account(account.email, "com.google"))
+                .setScopes(
+                    listOf(
+                        Scope("https://www.googleapis.com/auth/youtube.upload"),
+                        Scope("https://www.googleapis.com/auth/youtube.readonly"),
+                        Scope("https://www.googleapis.com/auth/userinfo.email")
+                    )
                 )
+                .build()
+
+            Identity.getAuthorizationClient(context)
+                .revokeAccess(revokeRequest)
                 .addOnSuccessListener {
                     val remainingAccounts = youtubeAccounts.filterNot {
                         it.email.equals(account.email, ignoreCase = true)
