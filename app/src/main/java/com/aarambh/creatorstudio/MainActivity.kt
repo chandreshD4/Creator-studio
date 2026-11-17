@@ -1,4 +1,3 @@
-
 package com.aarambh.creatorstudio
 
 import android.content.Context
@@ -12,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -116,6 +116,7 @@ fun KhushalBlogApp() {
     var selectedVideo by remember { mutableStateOf<Uri?>(null) }
     var selectedVideoName by remember { mutableStateOf("") }
     var showAnalysis by remember { mutableStateOf(false) }
+    var showAccountDashboard by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
 
     val context = LocalContext.current
@@ -150,9 +151,15 @@ fun KhushalBlogApp() {
                     videoType = videoType,
                     onBack = { showAnalysis = false }
                 )
+            } else if (showAccountDashboard) {
+                AccountDashboardPage(
+                    isGujarati = isGujarati,
+                    onBack = { showAccountDashboard = false }
+                )
             } else {
                 HomePage(
                     isGujarati = isGujarati,
+                    onLogoClick = { showAccountDashboard = true },
                     onLanguageChange = { isGujarati = it },
                     videoType = videoType,
                     onVideoTypeChange = { videoType = it },
@@ -208,7 +215,8 @@ private fun HomePage(
     onChooseVideo: () -> Unit,
     onClearPreview: () -> Unit,
     errorMessage: String,
-    onProcess: () -> Unit
+    onProcess: () -> Unit,
+    onLogoClick: () -> Unit
 ) {
     var languageMenuExpanded by remember {
         mutableStateOf(false)
@@ -231,7 +239,8 @@ private fun HomePage(
                 contentDescription = "KHUSHAL BLOG Logo",
                 modifier = Modifier
                     .size(62.dp)
-                    .clip(CircleShape),
+                    .clip(CircleShape)
+                    .clickable { onLogoClick() },
                 contentScale = ContentScale.Crop
             )
 
@@ -442,6 +451,198 @@ private fun HomePage(
         }
 
         Spacer(Modifier.height(25.dp))
+    }
+}
+
+
+@Composable
+private fun AccountDashboardPage(
+    isGujarati: Boolean,
+    onBack: () -> Unit
+) {
+    var notice by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp)
+    ) {
+        TextButton(onClick = onBack) {
+            Text(
+                if (isGujarati) "← પાછા જાઓ" else "← BACK",
+                color = Pink
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Text(
+            if (isGujarati) "તમારું ડેશબોર્ડ" else "MY DASHBOARD",
+            color = White,
+            fontSize = 25.sp,
+            fontWeight = FontWeight.ExtraBold
+        )
+
+        Spacer(Modifier.height(6.dp))
+
+        Text(
+            if (isGujarati) "તમારા YouTube એકાઉન્ટ અને સેટિંગ્સ"
+            else "Manage your YouTube account and settings",
+            color = Muted,
+            fontSize = 13.sp
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = CardBackground
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    "▶  Google / YouTube",
+                    color = White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (isGujarati) "એકાઉન્ટની સ્થિતિ: જોડાયેલ નથી"
+                    else "Account status: Not connected",
+                    color = Muted,
+                    fontSize = 13.sp
+                )
+                Spacer(Modifier.height(14.dp))
+                Button(
+                    onClick = {
+                        notice = if (isGujarati)
+                            "Google એકાઉન્ટ કનેક્શન આગળના તબક્કામાં સેટ થશે."
+                        else
+                            "Google account connection will be configured in the next step."
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Pink
+                    )
+                ) {
+                    Text(
+                        if (isGujarati) "એકાઉન્ટ જોડો"
+                        else "CONNECT ACCOUNT",
+                        color = White
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = CardBackground
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    if (isGujarati) "YouTube વિડિયો અપલોડ"
+                    else "YouTube Video Upload",
+                    color = White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (isGujarati) "તમારા ચેનલ પર વિડિયો અપલોડ કરો"
+                    else "Upload videos to your YouTube channel",
+                    color = Muted,
+                    fontSize = 13.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = {
+                        notice = if (isGujarati)
+                            "વિડિયો અપલોડ સુવિધા આગળના તબક્કામાં ઉમેરાશે."
+                        else
+                            "Video upload will be added in the next step."
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        if (isGujarati) "અપલોડ વિકલ્પ"
+                        else "UPLOAD OPTIONS",
+                        color = White
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = CardBackground
+            ),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    if (isGujarati) "ચેનલ સેટિંગ્સ"
+                    else "Channel Settings",
+                    color = White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (isGujarati) "તમારી ચેનલની સેટિંગ્સ મેનેજ કરો"
+                    else "Manage your channel settings",
+                    color = Muted,
+                    fontSize = 13.sp
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = {
+                        notice = if (isGujarati)
+                            "ચેનલ સેટિંગ્સ આગળના તબક્કામાં ઉમેરાશે."
+                        else
+                            "Channel settings will be added in the next step."
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        if (isGujarati) "સેટિંગ્સ ખોલો"
+                        else "OPEN SETTINGS",
+                        color = White
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+    }
+
+    notice?.let { message ->
+        AlertDialog(
+            onDismissRequest = { notice = null },
+            title = {
+                Text(if (isGujarati) "માહિતી" else "Information")
+            },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { notice = null }) {
+                    Text("OK", color = Pink)
+                }
+            },
+            containerColor = CardBackground,
+            titleContentColor = White,
+            textContentColor = Muted
+        )
     }
 }
 
