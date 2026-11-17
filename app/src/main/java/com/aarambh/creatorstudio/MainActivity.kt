@@ -549,49 +549,6 @@ private fun AccountDashboardPage(
         ) {
             Column(Modifier.padding(16.dp)) {
                 Text(
-                    if (isGujarati) "YouTube વિડિયો અપલોડ"
-                    else "YouTube Video Upload",
-                    color = White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    if (isGujarati) "તમારા ચેનલ પર વિડિયો અપલોડ કરો"
-                    else "Upload videos to your YouTube channel",
-                    color = Muted,
-                    fontSize = 13.sp
-                )
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = {
-                        notice = if (isGujarati)
-                            "વિડિયો અપલોડ સુવિધા આગળના તબક્કામાં ઉમેરાશે."
-                        else
-                            "Video upload will be added in the next step."
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        if (isGujarati) "અપલોડ વિકલ્પ"
-                        else "UPLOAD OPTIONS",
-                        color = White
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(14.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = CardBackground
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text(
                     if (isGujarati) "ચેનલ સેટિંગ્સ"
                     else "Channel Settings",
                     color = White,
