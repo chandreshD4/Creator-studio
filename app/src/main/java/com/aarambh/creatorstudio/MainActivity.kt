@@ -177,7 +177,10 @@ fun KhushalBlogApp() {
 
         val request = AuthorizationRequest.builder()
             .setRequestedScopes(
-                listOf(Scope("https://www.googleapis.com/auth/youtube.upload"))
+                listOf(
+                    Scope("https://www.googleapis.com/auth/youtube.upload"),
+                    Scope("https://www.googleapis.com/auth/youtube.readonly")
+                )
             )
             .build()
 
