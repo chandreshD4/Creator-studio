@@ -191,6 +191,7 @@ fun KhushalBlogApp() {
                     Scope("https://www.googleapis.com/auth/youtube.readonly")
                 )
             )
+            .setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT)
             .build()
 
         Identity.getAuthorizationClient(context)
