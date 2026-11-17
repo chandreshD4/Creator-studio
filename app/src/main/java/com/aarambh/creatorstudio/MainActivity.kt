@@ -3,6 +3,8 @@ package com.aarambh.creatorstudio
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.OpenableColumns
 import android.widget.MediaController
 import android.widget.VideoView
@@ -39,6 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import java.net.HttpURLConnection
+import java.net.URL
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -128,6 +133,9 @@ fun KhushalBlogApp() {
     var youtubeAccessToken by remember { mutableStateOf<String?>(null) }
     var authMessage by remember { mutableStateOf("") }
     var authInProgress by remember { mutableStateOf(false) }
+    var channelInfo by remember { mutableStateOf<YouTubeChannelInfo?>(null) }
+    var channelLoading by remember { mutableStateOf(false) }
+    var channelError by remember { mutableStateOf("") }
 
     val authorizationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
@@ -220,6 +228,28 @@ fun KhushalBlogApp() {
             }
     }
 
+    LaunchedEffect(youtubeAccessToken) {
+        val token = youtubeAccessToken
+        if (!token.isNullOrBlank()) {
+            channelLoading = true
+            channelError = ""
+            fetchYouTubeChannel(token) { channel, error ->
+                channelLoading = false
+                if (channel != null) {
+                    channelInfo = channel
+                    channelError = ""
+                } else {
+                    channelInfo = null
+                    channelError = error ?: "Could not load YouTube channel."
+                }
+            }
+        } else {
+            channelInfo = null
+            channelError = ""
+            channelLoading = false
+        }
+    }
+
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Pink,
@@ -245,6 +275,9 @@ fun KhushalBlogApp() {
                     isYoutubeAuthorized = !youtubeAccessToken.isNullOrBlank(),
                     authInProgress = authInProgress,
                     authMessage = authMessage,
+                    channelInfo = channelInfo,
+                    channelLoading = channelLoading,
+                    channelError = channelError,
                     onConnect = connectGoogleAccount,
                     onBack = { showAccountDashboard = false }
                 )
@@ -553,6 +586,9 @@ private fun AccountDashboardPage(
     isYoutubeAuthorized: Boolean,
     authInProgress: Boolean,
     authMessage: String,
+    channelInfo: YouTubeChannelInfo?,
+    channelLoading: Boolean,
+    channelError: String,
     onConnect: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -646,6 +682,54 @@ private fun AccountDashboardPage(
             }
         }
 
+        if (channelLoading || channelInfo != null || channelError.isNotBlank()) {
+            Spacer(Modifier.height(12.dp))
+            if (channelLoading) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Pink,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text("Loading YouTube channel...", color = Muted, fontSize = 13.sp)
+                }
+            }
+            channelInfo?.let { channel ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!channel.thumbnailUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = channel.thumbnailUrl,
+                            contentDescription = "YouTube channel image",
+                            modifier = Modifier.size(64.dp).clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(Modifier.width(12.dp))
+                    }
+                    Column {
+                        Text(
+                            channel.title,
+                            color = White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Channel ID: ${channel.id}",
+                            color = Muted,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+            if (channelError.isNotBlank()) {
+                Text(
+                    channelError,
+                    color = Color(0xFFFF7777),
+                    fontSize = 12.sp
+                )
+            }
+        }
+
         Spacer(Modifier.height(14.dp))
 
         Card(
@@ -709,6 +793,80 @@ private fun AccountDashboardPage(
             textContentColor = Muted
         )
     }
+}
+
+private data class YouTubeChannelInfo(
+    val id: String,
+    val title: String,
+    val thumbnailUrl: String?
+)
+
+private fun fetchYouTubeChannel(
+    accessToken: String,
+    onResult: (YouTubeChannelInfo?, String?) -> Unit
+) {
+    Thread {
+        var connection: HttpURLConnection? = null
+        try {
+            connection = URL(
+                "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true"
+            ).openConnection() as HttpURLConnection
+
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Authorization", "Bearer $accessToken")
+            connection.connectTimeout = 15000
+            connection.readTimeout = 15000
+
+            val responseCode = connection.responseCode
+            val stream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
+
+            val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
+            val json = JSONObject(body)
+
+            if (responseCode !in 200..299) {
+                val message = json.optJSONObject("error")
+                    ?.optString("message")
+                    ?.takeIf { it.isNotBlank() }
+                throw IllegalStateException(message ?: "YouTube API error ($responseCode)")
+            }
+
+            val items = json.optJSONArray("items")
+            if (items == null || items.length() == 0) {
+                throw IllegalStateException("No YouTube channel found for this Google account.")
+            }
+
+            val item = items.getJSONObject(0)
+            val snippet = item.optJSONObject("snippet") ?: JSONObject()
+            val thumbnails = snippet.optJSONObject("thumbnails")
+
+            val thumbnail = thumbnails?.optJSONObject("high")?.optString("url")
+                ?.takeIf { it.isNotBlank() }
+                ?: thumbnails?.optJSONObject("medium")?.optString("url")
+                    ?.takeIf { it.isNotBlank() }
+                ?: thumbnails?.optJSONObject("default")?.optString("url")
+                    ?.takeIf { it.isNotBlank() }
+
+            val channel = YouTubeChannelInfo(
+                id = item.optString("id"),
+                title = snippet.optString("title", "YouTube Channel"),
+                thumbnailUrl = thumbnail
+            )
+
+            Handler(Looper.getMainLooper()).post {
+                onResult(channel, null)
+            }
+        } catch (e: Exception) {
+            Handler(Looper.getMainLooper()).post {
+                onResult(null, e.message ?: "Could not load YouTube channel.")
+            }
+        } finally {
+            connection?.disconnect()
+        }
+    }.start()
 }
 
 @Composable
