@@ -432,6 +432,15 @@ private fun HomePage(
                     color = Muted,
                     fontSize = 11.sp
                 )
+
+                TextButton(onClick = onLogoClick) {
+                    Text(
+                        if (isGujarati) "એકાઉન્ટ બદલો" else "Switch Account",
+                        color = Pink,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             Box {
@@ -636,296 +645,233 @@ private fun AccountDashboardPage(
     onDisconnect: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    val activeChannel = accounts.firstNotNullOfOrNull { account ->
-        account.channels.firstOrNull { channel ->
+    val activeAccount = accounts.firstOrNull { account ->
+        account.channels.any { channel ->
             "${account.email.lowercase()}|${channel.id}" == selectedChannelKey
-        }?.let { channel -> account to channel }
+        }
+    } ?: accounts.firstOrNull()
+
+    val orderedAccounts = if (activeAccount == null) {
+        emptyList()
+    } else {
+        listOf(activeAccount) + accounts.filterNot {
+            it.email.equals(activeAccount.email, ignoreCase = true)
+        }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(20.dp)
+            .padding(horizontal = 18.dp, vertical = 14.dp)
     ) {
-        TextButton(onClick = onBack) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onBack) {
+                Text("←", color = White, fontSize = 23.sp)
+            }
+
             Text(
-                if (isGujarati) "← પાછા જાઓ" else "← BACK",
-                color = Pink
+                "Accounts",
+                modifier = Modifier.weight(1f),
+                color = White,
+                fontSize = 23.sp,
+                fontWeight = FontWeight.Bold
             )
+
+            TextButton(
+                onClick = onConnect,
+                enabled = !authInProgress
+            ) {
+                Text(
+                    if (authInProgress) "…" else "+",
+                    color = Pink,
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         Spacer(Modifier.height(12.dp))
 
-        Text(
-            if (isGujarati) "ચેનલ સ્વિચર" else "CHANNEL SWITCHER",
-            color = White,
-            fontSize = 25.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-
-        Spacer(Modifier.height(6.dp))
-
-        Text(
-            if (isGujarati) "અપલોડ કરવા માટે તમારી ચેનલ પસંદ કરો"
-            else "Choose the YouTube channel you want to use for uploads",
-            color = Muted,
-            fontSize = 13.sp
-        )
-
-        Spacer(Modifier.height(20.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = CardBackground),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text(
-                    if (isGujarati) "હાલમાં પસંદ કરેલી ચેનલ"
-                    else "CURRENTLY ACTIVE CHANNEL",
-                    color = Color(0xFF4CAF50),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(Modifier.height(12.dp))
-
-                if (activeChannel != null) {
-                    val (account, channel) = activeChannel
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (!channel.thumbnailUrl.isNullOrBlank()) {
-                            AsyncImage(
-                                model = channel.thumbnailUrl,
-                                contentDescription = "Active YouTube channel",
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF34343D)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("▶", color = White)
-                            }
-                        }
-
-                        Spacer(Modifier.width(12.dp))
-
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                channel.title,
-                                color = White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                account.email,
-                                color = Muted,
-                                fontSize = 11.sp
-                            )
-                            Text(
-                                if (isGujarati) "✓ સક્રિય"
-                                else "✓ ACTIVE",
-                                color = Color(0xFF4CAF50),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                } else {
-                    Text(
-                        if (isGujarati) "હજુ કોઈ ચેનલ પસંદ નથી."
-                        else "No channel selected yet.",
-                        color = Muted,
-                        fontSize = 13.sp
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(22.dp))
-
-        Text(
-            if (isGujarati) "તમારા Google એકાઉન્ટ અને ચેનલો"
-            else "GOOGLE ACCOUNTS & CHANNELS",
-            color = White,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(Modifier.height(10.dp))
-
         if (accounts.isEmpty()) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                colors = CardDefaults.cardColors(
+                    containerColor = CardBackground
+                ),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Text(
-                    if (isGujarati) "ચેનલો જોવા માટે Google એકાઉન્ટ જોડો."
-                    else "Connect a Google account to load its YouTube channels.",
+                    if (isGujarati) {
+                        "Google એકાઉન્ટ ઉમેરવા ઉપરના + બટન પર ટેપ કરો."
+                    } else {
+                        "Tap the + button above to add a Google account and see its YouTube channels."
+                    },
                     color = Muted,
-                    modifier = Modifier.padding(16.dp),
-                    fontSize = 13.sp
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(16.dp)
                 )
             }
-        }
+        } else {
+            orderedAccounts.forEachIndexed { index, account ->
 
-        accounts.forEach { account ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 14.dp),
-                colors = CardDefaults.cardColors(containerColor = CardBackground),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(Modifier.padding(14.dp)) {
+                if (index == 1) {
+                    Spacer(Modifier.height(16.dp))
                     Text(
-                        "✉  ${account.email}",
+                        if (isGujarati) "અન્ય એકાઉન્ટ્સ" else "Other accounts",
                         color = White,
-                        fontSize = 14.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
+                    Spacer(Modifier.height(10.dp))
+                }
 
-                    Spacer(Modifier.height(5.dp))
+                Text(
+                    account.email,
+                    color = White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
 
-                    Text(
-                        if (isGujarati) "${account.channels.size} ચેનલ મળી"
-                        else "${account.channels.size} channel(s) found",
-                        color = Muted,
-                        fontSize = 12.sp
-                    )
+                Spacer(Modifier.height(8.dp))
 
-                    Spacer(Modifier.height(12.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = CardBackground
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(Modifier.padding(10.dp)) {
 
-                    account.channels.forEach { channel ->
-                        val key = "${account.email.lowercase()}|${channel.id}"
-                        val isActive = key == selectedChannelKey
+                        if (account.channels.isEmpty()) {
+                            Text(
+                                if (isGujarati) {
+                                    "આ એકાઉન્ટમાં કોઈ ચેનલ મળી નથી."
+                                } else {
+                                    "No YouTube channels found for this account."
+                                },
+                                color = Muted,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    if (isActive) Color(0x2234C759)
-                                    else Color.Transparent
-                                )
-                                .clickable { onSelectChannel(key) }
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (!channel.thumbnailUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = channel.thumbnailUrl,
-                                    contentDescription = "YouTube channel image",
-                                    modifier = Modifier
-                                        .size(46.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(46.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF34343D)),
-                                    contentAlignment = Alignment.Center
+                        account.channels.forEach { channel ->
+                            val key =
+                                "${account.email.lowercase()}|${channel.id}"
+                            val isActive = key == selectedChannelKey
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isActive) {
+                                            Color(0x2234C759)
+                                        } else {
+                                            Color.Transparent
+                                        }
+                                    )
+                                    .clickable {
+                                        onSelectChannel(key)
+                                    }
+                                    .padding(9.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (!channel.thumbnailUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = channel.thumbnailUrl,
+                                        contentDescription = "YouTube channel image",
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF34343D)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("▶", color = White)
+                                    }
+                                }
+
+                                Spacer(Modifier.width(11.dp))
+
+                                Column(
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("▶", color = White)
+                                    Text(
+                                        channel.title,
+                                        color = White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+
+                                    Text(
+                                        if (isActive) {
+                                            if (isGujarati) "✓ સક્રિય" else "✓ ACTIVE"
+                                        } else {
+                                            if (isGujarati) {
+                                                "ચેનલ બદલવા ટેપ કરો"
+                                            } else {
+                                                "Tap to switch channel"
+                                            }
+                                        },
+                                        color = if (isActive) {
+                                            Color(0xFF4CAF50)
+                                        } else {
+                                            Muted
+                                        },
+                                        fontSize = 11.sp
+                                    )
+                                }
+
+                                if (isActive) {
+                                    Text(
+                                        "✓",
+                                        color = Color(0xFF4CAF50),
+                                        fontSize = 22.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
 
-                            Spacer(Modifier.width(11.dp))
-
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    channel.title,
-                                    color = White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    if (isActive) {
-                                        if (isGujarati) "હાલમાં પસંદ કરેલી"
-                                        else "Currently selected"
-                                    } else {
-                                        if (isGujarati) "ચેનલ પસંદ કરવા ટેપ કરો"
-                                        else "Tap to switch to this channel"
-                                    },
-                                    color = if (isActive) Color(0xFF4CAF50) else Muted,
-                                    fontSize = 11.sp
-                                )
-                            }
-
-                            if (isActive) {
-                                Text(
-                                    "✓",
-                                    color = Color(0xFF4CAF50),
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            Spacer(Modifier.height(3.dp))
                         }
 
-                        Spacer(Modifier.height(4.dp))
-                    }
-
-                    if (account.channels.isEmpty()) {
-                        Text(
-                            if (isGujarati) "આ એકાઉન્ટમાં ચેનલ મળી નથી."
-                            else "No channels were returned for this account.",
-                            color = Muted,
-                            fontSize = 12.sp
-                        )
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    OutlinedButton(
-                        onClick = { onDisconnect(account.email) },
-                        enabled = !authInProgress,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color(0xFFFF6666)
-                        )
-                    ) {
-                        Text(
-                            if (isGujarati) "આ એકાઉન્ટ ડિસ્કનેક્ટ કરો"
-                            else "DISCONNECT ACCOUNT"
-                        )
+                        TextButton(
+                            onClick = {
+                                onDisconnect(account.email)
+                            },
+                            enabled = !authInProgress
+                        ) {
+                            Text(
+                                if (isGujarati) {
+                                    "એકાઉન્ટ ડિસ્કનેક્ટ કરો"
+                                } else {
+                                    "Disconnect account"
+                                },
+                                color = Color(0xFFFF7777),
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
+
+                Spacer(Modifier.height(12.dp))
             }
         }
 
-        Spacer(Modifier.height(4.dp))
-
-        Button(
-            onClick = onConnect,
-            enabled = !authInProgress,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Pink)
-        ) {
-            Text(
-                if (authInProgress) {
-                    if (isGujarati) "કનેક્ટ થઈ રહ્યું છે..." else "PLEASE WAIT..."
-                } else {
-                    if (isGujarati) "+ Google એકાઉન્ટ ઉમેરો"
-                    else "+ ADD GOOGLE ACCOUNT"
-                },
-                color = White
-            )
-        }
-
         if (authMessage.isNotBlank()) {
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 authMessage,
                 color = Muted,
