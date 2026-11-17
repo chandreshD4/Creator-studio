@@ -131,12 +131,37 @@ fun KhushalBlogApp() {
     var errorMessage by remember { mutableStateOf("") }
 
     val context = LocalContext.current
-    var youtubeAccessToken by remember { mutableStateOf<String?>(null) }
+    var youtubeAccounts by remember { mutableStateOf<List<YouTubeAccountInfo>>(emptyList()) }
+    var selectedChannelKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
     var authMessage by remember { mutableStateOf("") }
     var authInProgress by remember { mutableStateOf(false) }
-    var channelInfo by remember { mutableStateOf<YouTubeChannelInfo?>(null) }
-    var channelLoading by remember { mutableStateOf(false) }
-    var channelError by remember { mutableStateOf("") }
+
+    val loadGoogleAccount: (String) -> Unit = { token ->
+        authInProgress = true
+        authMessage = if (isGujarati) {
+            "એકાઉન્ટ અને ચેનલ લોડ થઈ રહ્યા છે..."
+        } else {
+            "Loading account and channels..."
+        }
+
+        fetchGoogleAccount(token) { account, error ->
+            authInProgress = false
+
+            if (account != null) {
+                youtubeAccounts = youtubeAccounts
+                    .filterNot { it.email.equals(account.email, ignoreCase = true) } + account
+
+                authMessage = if (isGujarati) {
+                    "Google એકાઉન્ટ સફળતાપૂર્વક જોડાયું."
+                } else {
+                    "Google account connected successfully."
+                }
+            } else {
+                authMessage = error ?: "Could not load Google account."
+            }
+        }
+    }
+
 
     val authorizationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
@@ -149,12 +174,7 @@ fun KhushalBlogApp() {
 
             val token = authorizationResult.accessToken
             if (!token.isNullOrBlank()) {
-                youtubeAccessToken = token
-                authMessage = if (isGujarati) {
-                    "YouTube પરવાનગી સફળતાપૂર્વક મળી."
-                } else {
-                    "YouTube permission granted successfully."
-                }
+                loadGoogleAccount(token)
             } else {
                 authMessage = if (isGujarati) {
                     "પરવાનગી મળી નથી. ફરી પ્રયાસ કરો."
@@ -188,7 +208,8 @@ fun KhushalBlogApp() {
             .setRequestedScopes(
                 listOf(
                     Scope("https://www.googleapis.com/auth/youtube.upload"),
-                    Scope("https://www.googleapis.com/auth/youtube.readonly")
+                    Scope("https://www.googleapis.com/auth/youtube.readonly"),
+                        Scope("https://www.googleapis.com/auth/userinfo.email")
                 )
             )
             .setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT)
@@ -213,12 +234,7 @@ fun KhushalBlogApp() {
                     authInProgress = false
                     val token = authorizationResult.accessToken
                     if (!token.isNullOrBlank()) {
-                        youtubeAccessToken = token
-                        authMessage = if (isGujarati) {
-                            "YouTube પરવાનગી સફળતાપૂર્વક મળી."
-                        } else {
-                            "YouTube permission granted successfully."
-                        }
+                        loadGoogleAccount(token)
                     } else {
                         authMessage = "Google did not provide permission."
                     }
@@ -230,56 +246,38 @@ fun KhushalBlogApp() {
             }
     }
 
-    val disconnectGoogleAccount: () -> Unit = {
-        val oldToken = youtubeAccessToken
+    val disconnectGoogleAccount: (String) -> Unit = { email ->
+        val account = youtubeAccounts.firstOrNull {
+            it.email.equals(email, ignoreCase = true)
+        }
 
-        if (oldToken.isNullOrBlank()) {
-            channelInfo = null
-            channelError = ""
-            authMessage = "Account disconnected."
+        if (account == null) {
+            authMessage = "Google account not found."
         } else {
             authInProgress = true
-            authMessage = "Disconnecting account..."
+            authMessage = "Disconnecting ${account.email}..."
 
             Identity.getAuthorizationClient(context)
                 .clearToken(
                     ClearTokenRequest.builder()
-                        .setToken(oldToken)
+                        .setToken(account.accessToken)
                         .build()
                 )
                 .addOnSuccessListener {
-                    youtubeAccessToken = null
-                    channelInfo = null
-                    channelError = ""
+                    youtubeAccounts = youtubeAccounts.filterNot {
+                        it.email.equals(account.email, ignoreCase = true)
+                    }
+                    val removedKeys = account.channels.map {
+                        "${account.email.lowercase()}|${it.id}"
+                    }.toSet()
+                    selectedChannelKeys = selectedChannelKeys - removedKeys
                     authInProgress = false
-                    authMessage = "Account disconnected. You can connect another account."
+                    authMessage = "Account disconnected successfully."
                 }
                 .addOnFailureListener { error ->
                     authInProgress = false
                     authMessage = "Could not disconnect account: ${error.message}"
                 }
-        }
-    }
-
-    LaunchedEffect(youtubeAccessToken) {
-        val token = youtubeAccessToken
-        if (!token.isNullOrBlank()) {
-            channelLoading = true
-            channelError = ""
-            fetchYouTubeChannel(token) { channel, error ->
-                channelLoading = false
-                if (channel != null) {
-                    channelInfo = channel
-                    channelError = ""
-                } else {
-                    channelInfo = null
-                    channelError = error ?: "Could not load YouTube channel."
-                }
-            }
-        } else {
-            channelInfo = null
-            channelError = ""
-            channelLoading = false
         }
     }
 
@@ -305,12 +303,17 @@ fun KhushalBlogApp() {
             } else if (showAccountDashboard) {
                 AccountDashboardPage(
                     isGujarati = isGujarati,
-                    isYoutubeAuthorized = !youtubeAccessToken.isNullOrBlank(),
+                    accounts = youtubeAccounts,
+                    selectedChannelKeys = selectedChannelKeys,
+                    onToggleChannel = { key ->
+                        selectedChannelKeys = if (key in selectedChannelKeys) {
+                            selectedChannelKeys - key
+                        } else {
+                            selectedChannelKeys + key
+                        }
+                    },
                     authInProgress = authInProgress,
                     authMessage = authMessage,
-                    channelInfo = channelInfo,
-                    channelLoading = channelLoading,
-                    channelError = channelError,
                     onConnect = connectGoogleAccount,
                     onDisconnect = disconnectGoogleAccount,
                     onBack = { showAccountDashboard = false }
@@ -617,17 +620,20 @@ private fun HomePage(
 @Composable
 private fun AccountDashboardPage(
     isGujarati: Boolean,
-    isYoutubeAuthorized: Boolean,
+    accounts: List<YouTubeAccountInfo>,
+    selectedChannelKeys: Set<String>,
+    onToggleChannel: (String) -> Unit,
     authInProgress: Boolean,
     authMessage: String,
-    channelInfo: YouTubeChannelInfo?,
-    channelLoading: Boolean,
-    channelError: String,
     onConnect: () -> Unit,
-    onDisconnect: () -> Unit,
+    onDisconnect: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    var notice by remember { mutableStateOf<String?>(null) }
+    val selectedChannels = accounts.flatMap { account ->
+        account.channels
+            .filter { "${account.email.lowercase()}|${it.id}" in selectedChannelKeys }
+            .map { channel -> account to channel }
+    }
 
     Column(
         modifier = Modifier
@@ -654,19 +660,17 @@ private fun AccountDashboardPage(
         Spacer(Modifier.height(6.dp))
 
         Text(
-            if (isGujarati) "તમારા YouTube એકાઉન્ટ અને સેટિંગ્સ"
-            else "Manage your YouTube account and settings",
+            if (isGujarati) "તમારા Google એકાઉન્ટ અને YouTube ચેનલ મેનેજ કરો"
+            else "Manage your Google accounts and YouTube channels",
             color = Muted,
             fontSize = 13.sp
         )
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(22.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = CardBackground
-            ),
+            colors = CardDefaults.cardColors(containerColor = CardBackground),
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(Modifier.padding(16.dp)) {
@@ -676,19 +680,23 @@ private fun AccountDashboardPage(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
+
                 Spacer(Modifier.height(8.dp))
+
                 Text(
-                    if (isYoutubeAuthorized) {
-                        if (isGujarati) "YouTube પરવાનગી મળી ગઈ છે"
-                        else "YouTube permission granted"
+                    if (accounts.isEmpty()) {
+                        if (isGujarati) "કોઈ Google એકાઉન્ટ જોડાયેલ નથી"
+                        else "No Google account connected"
                     } else {
-                        if (isGujarati) "એકાઉન્ટની સ્થિતિ: જોડાયેલ નથી"
-                        else "Account status: Not connected"
+                        if (isGujarati) "${accounts.size} એકાઉન્ટ જોડાયેલ"
+                        else "${accounts.size} Google account(s) connected"
                     },
-                    color = if (isYoutubeAuthorized) Color(0xFF4CAF50) else Muted,
+                    color = if (accounts.isEmpty()) Muted else Color(0xFF4CAF50),
                     fontSize = 13.sp
                 )
+
                 Spacer(Modifier.height(14.dp))
+
                 Button(
                     onClick = onConnect,
                     enabled = !authInProgress,
@@ -697,26 +705,12 @@ private fun AccountDashboardPage(
                 ) {
                     Text(
                         if (authInProgress) {
-                            if (isGujarati) "કનેક્ટ થઈ રહ્યું છે..." else "CONNECTING..."
-                        } else if (isYoutubeAuthorized) {
-                            if (isGujarati) "ફરીથી જોડો" else "RECONNECT ACCOUNT"
+                            if (isGujarati) "કનેક્ટ થઈ રહ્યું છે..." else "PLEASE WAIT..."
                         } else {
-                            if (isGujarati) "એકાઉન્ટ જોડો" else "CONNECT ACCOUNT"
+                            if (isGujarati) "+ Google એકાઉન્ટ ઉમેરો"
+                            else "+ ADD GOOGLE ACCOUNT"
                         },
                         color = White
-                    )
-                }
-                OutlinedButton(
-                    onClick = onDisconnect,
-                    enabled = isYoutubeAuthorized && !authInProgress,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFFFF5555)
-                    )
-                ) {
-                    Text(
-                        if (isGujarati) "એકાઉન્ટ ડિસ્કનેક્ટ કરો"
-                        else "DISCONNECT ACCOUNT"
                     )
                 }
 
@@ -724,123 +718,217 @@ private fun AccountDashboardPage(
                     Spacer(Modifier.height(10.dp))
                     Text(
                         authMessage,
-                        color = if (isYoutubeAuthorized) Color(0xFF4CAF50) else Muted,
+                        color = Muted,
                         fontSize = 12.sp
                     )
                 }
             }
         }
 
-        if (channelLoading || channelInfo != null || channelError.isNotBlank()) {
-            Spacer(Modifier.height(12.dp))
-            if (channelLoading) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = Pink,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text("Loading YouTube channel...", color = Muted, fontSize = 13.sp)
-                }
-            }
-            channelInfo?.let { channel ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (!channel.thumbnailUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = channel.thumbnailUrl,
-                            contentDescription = "YouTube channel image",
-                            modifier = Modifier.size(64.dp).clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(Modifier.width(12.dp))
-                    }
-                    Column {
-                        Text(
-                            channel.title,
-                            color = White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "Channel ID: ${channel.id}",
-                            color = Muted,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-            }
-            if (channelError.isNotBlank()) {
-                Text(
-                    channelError,
-                    color = Color(0xFFFF7777),
-                    fontSize = 12.sp
-                )
-            }
-        }
+        Spacer(Modifier.height(18.dp))
 
-        Spacer(Modifier.height(14.dp))
+        Text(
+            if (isGujarati) "તમારા Google એકાઉન્ટ" else "YOUR GOOGLE ACCOUNTS",
+            color = White,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold
+        )
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = CardBackground
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(Modifier.padding(16.dp)) {
+        Spacer(Modifier.height(10.dp))
+
+        if (accounts.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                shape = RoundedCornerShape(14.dp)
+            ) {
                 Text(
-                    if (isGujarati) "ચેનલ સેટિંગ્સ"
-                    else "Channel Settings",
-                    color = White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    if (isGujarati) "તમારી ચેનલની સેટિંગ્સ મેનેજ કરો"
-                    else "Manage your channel settings",
+                    if (isGujarati) "ચેનલ જોવા માટે Google એકાઉન્ટ જોડો."
+                    else "Connect a Google account to load its YouTube channels.",
                     color = Muted,
+                    modifier = Modifier.padding(16.dp),
                     fontSize = 13.sp
                 )
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = {
-                        notice = if (isGujarati)
-                            "ચેનલ સેટિંગ્સ આગળના તબક્કામાં ઉમેરાશે."
-                        else
-                            "Channel settings will be added in the next step."
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+            }
+        }
+
+        accounts.forEach { account ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(Modifier.padding(14.dp)) {
                     Text(
-                        if (isGujarati) "સેટિંગ્સ ખોલો"
-                        else "OPEN SETTINGS",
-                        color = White
+                        account.email,
+                        color = White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
                     )
+
+                    Spacer(Modifier.height(5.dp))
+
+                    Text(
+                        if (isGujarati) "${account.channels.size} ચેનલ મળી"
+                        else "${account.channels.size} channel(s) found",
+                        color = Muted,
+                        fontSize = 12.sp
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    account.channels.forEach { channel ->
+                        val key = "${account.email.lowercase()}|${channel.id}"
+                        val isSelected = key in selectedChannelKeys
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (!channel.thumbnailUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = channel.thumbnailUrl,
+                                    contentDescription = "YouTube channel image",
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF34343D)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("▶", color = White)
+                                }
+                            }
+
+                            Spacer(Modifier.width(10.dp))
+
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    channel.title,
+                                    color = White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    "ID: ${channel.id}",
+                                    color = Muted,
+                                    fontSize = 10.sp
+                                )
+                            }
+
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { onToggleChannel(key) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Pink
+                                )
+                            )
+                        }
+                    }
+
+                    if (account.channels.isEmpty()) {
+                        Text(
+                            if (isGujarati) "આ એકાઉન્ટમાં ચેનલ મળી નથી."
+                            else "No channels were returned for this account.",
+                            color = Muted,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = { onDisconnect(account.email) },
+                        enabled = !authInProgress,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFFFF6666)
+                        )
+                    ) {
+                        Text(
+                            if (isGujarati) "આ એકાઉન્ટ ડિસ્કનેક્ટ કરો"
+                            else "DISCONNECT THIS ACCOUNT"
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(Modifier.height(20.dp))
-    }
+        Spacer(Modifier.height(8.dp))
 
-    notice?.let { message ->
-        AlertDialog(
-            onDismissRequest = { notice = null },
-            title = {
-                Text(if (isGujarati) "માહિતી" else "Information")
-            },
-            text = { Text(message) },
-            confirmButton = {
-                TextButton(onClick = { notice = null }) {
-                    Text("OK", color = Pink)
-                }
-            },
-            containerColor = CardBackground,
-            titleContentColor = White,
-            textContentColor = Muted
+        Text(
+            if (isGujarati) "મારી પસંદ કરેલી ચેનલો"
+            else "MY CHANNELS",
+            color = White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
         )
+
+        Spacer(Modifier.height(10.dp))
+
+        if (selectedChannels.isEmpty()) {
+            Text(
+                if (isGujarati) "ઉપરની યાદીમાંથી ચેનલ પસંદ કરો."
+                else "Select one or more channels using the checkboxes above.",
+                color = Muted,
+                fontSize = 13.sp
+            )
+        } else {
+            selectedChannels.forEach { (account, channel) ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardBackground),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (!channel.thumbnailUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = channel.thumbnailUrl,
+                                contentDescription = "Selected channel image",
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+
+                        Spacer(Modifier.width(10.dp))
+
+                        Column(Modifier.weight(1f)) {
+                            Text(channel.title, color = White, fontSize = 14.sp)
+                            Text(account.email, color = Muted, fontSize = 10.sp)
+                        }
+
+                        TextButton(onClick = {
+                            onToggleChannel("${account.email.lowercase()}|${channel.id}")
+                        }) {
+                            Text(
+                                if (isGujarati) "દૂર કરો" else "REMOVE",
+                                color = Color(0xFFFF7777),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -850,70 +938,183 @@ private data class YouTubeChannelInfo(
     val thumbnailUrl: String?
 )
 
-private fun fetchYouTubeChannel(
+private data class YouTubeAccountInfo(
+    val email: String,
+    val accessToken: String,
+    val channels: List<YouTubeChannelInfo>
+)
+
+private fun fetchGoogleAccount(
     accessToken: String,
-    onResult: (YouTubeChannelInfo?, String?) -> Unit
+    onResult: (YouTubeAccountInfo?, String?) -> Unit
 ) {
     Thread {
-        var connection: HttpURLConnection? = null
         try {
-            connection = URL(
-                "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true"
+            val connection = URL(
+                "https://www.googleapis.com/oauth2/v2/userinfo"
             ).openConnection() as HttpURLConnection
 
-            connection.requestMethod = "GET"
-            connection.setRequestProperty("Authorization", "Bearer $accessToken")
-            connection.connectTimeout = 15000
-            connection.readTimeout = 15000
+            val email = try {
+                connection.requestMethod = "GET"
+                connection.setRequestProperty(
+                    "Authorization",
+                    "Bearer $accessToken"
+                )
+                connection.connectTimeout = 15000
+                connection.readTimeout = 15000
 
-            val responseCode = connection.responseCode
-            val stream = if (responseCode in 200..299) {
-                connection.inputStream
-            } else {
-                connection.errorStream
+                val code = connection.responseCode
+                val stream = if (code in 200..299) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream
+                }
+                val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
+                val json = JSONObject(body)
+
+                if (code !in 200..299) {
+                    throw IllegalStateException(
+                        json.optString("error_description")
+                            .ifBlank { "Could not identify Google account ($code)." }
+                    )
+                }
+
+                json.optString("email").takeIf { it.isNotBlank() }
+                    ?: throw IllegalStateException("Google did not return an email address.")
+            } finally {
+                connection.disconnect()
             }
 
-            val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
-            val json = JSONObject(body)
-
-            if (responseCode !in 200..299) {
-                val message = json.optJSONObject("error")
-                    ?.optString("message")
-                    ?.takeIf { it.isNotBlank() }
-                throw IllegalStateException(message ?: "YouTube API error ($responseCode)")
-            }
-
-            val items = json.optJSONArray("items")
-            if (items == null || items.length() == 0) {
-                throw IllegalStateException("No YouTube channel found for this Google account.")
-            }
-
-            val item = items.getJSONObject(0)
-            val snippet = item.optJSONObject("snippet") ?: JSONObject()
-            val thumbnails = snippet.optJSONObject("thumbnails")
-
-            val thumbnail = thumbnails?.optJSONObject("high")?.optString("url")
-                ?.takeIf { it.isNotBlank() }
-                ?: thumbnails?.optJSONObject("medium")?.optString("url")
-                    ?.takeIf { it.isNotBlank() }
-                ?: thumbnails?.optJSONObject("default")?.optString("url")
-                    ?.takeIf { it.isNotBlank() }
-
-            val channel = YouTubeChannelInfo(
-                id = item.optString("id"),
-                title = snippet.optString("title", "YouTube Channel"),
-                thumbnailUrl = thumbnail
-            )
-
-            Handler(Looper.getMainLooper()).post {
-                onResult(channel, null)
+            fetchYouTubeChannels(accessToken) { channels, error ->
+                if (channels != null) {
+                    onResult(
+                        YouTubeAccountInfo(
+                            email = email,
+                            accessToken = accessToken,
+                            channels = channels
+                        ),
+                        null
+                    )
+                } else {
+                    onResult(null, error)
+                }
             }
         } catch (e: Exception) {
             Handler(Looper.getMainLooper()).post {
-                onResult(null, e.message ?: "Could not load YouTube channel.")
+                onResult(
+                    null,
+                    e.message ?: "Could not load Google account."
+                )
             }
-        } finally {
-            connection?.disconnect()
+        }
+    }.start()
+}
+
+private fun fetchYouTubeChannels(
+    accessToken: String,
+    onResult: (List<YouTubeChannelInfo>?, String?) -> Unit
+) {
+    Thread {
+        val allChannels = mutableListOf<YouTubeChannelInfo>()
+
+        try {
+            var pageToken: String? = null
+
+            do {
+                var connection: HttpURLConnection? = null
+
+                try {
+                    val pageQuery = pageToken?.let {
+                        "&pageToken=${Uri.encode(it)}"
+                    } ?: ""
+
+                    val apiUrl =
+                        "https://www.googleapis.com/youtube/v3/channels" +
+                        "?part=snippet&mine=true&maxResults=50$pageQuery"
+
+                    connection = URL(apiUrl).openConnection() as HttpURLConnection
+                    connection.requestMethod = "GET"
+                    connection.setRequestProperty(
+                        "Authorization",
+                        "Bearer $accessToken"
+                    )
+                    connection.connectTimeout = 15000
+                    connection.readTimeout = 15000
+
+                    val responseCode = connection.responseCode
+                    val stream = if (responseCode in 200..299) {
+                        connection.inputStream
+                    } else {
+                        connection.errorStream
+                    }
+
+                    val body = stream?.bufferedReader()?.use { it.readText() } ?: ""
+                    val json = JSONObject(body)
+
+                    if (responseCode !in 200..299) {
+                        val message = json.optJSONObject("error")
+                            ?.optString("message")
+                            ?.takeIf { it.isNotBlank() }
+
+                        throw IllegalStateException(
+                            message ?: "YouTube API error ($responseCode)"
+                        )
+                    }
+
+                    val items = json.optJSONArray("items")
+
+                    if (items != null) {
+                        for (index in 0 until items.length()) {
+                            val item = items.getJSONObject(index)
+                            val snippet = item.optJSONObject("snippet") ?: JSONObject()
+                            val thumbnails = snippet.optJSONObject("thumbnails")
+
+                            val thumbnail =
+                                thumbnails?.optJSONObject("high")?.optString("url")
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?: thumbnails?.optJSONObject("medium")?.optString("url")
+                                        ?.takeIf { it.isNotBlank() }
+                                    ?: thumbnails?.optJSONObject("default")?.optString("url")
+                                        ?.takeIf { it.isNotBlank() }
+
+                            allChannels.add(
+                                YouTubeChannelInfo(
+                                    id = item.optString("id"),
+                                    title = snippet.optString(
+                                        "title",
+                                        "YouTube Channel"
+                                    ),
+                                    thumbnailUrl = thumbnail
+                                )
+                            )
+                        }
+                    }
+
+                    pageToken = json.optString("nextPageToken")
+                        .takeIf { it.isNotBlank() }
+
+                } finally {
+                    connection?.disconnect()
+                }
+            } while (pageToken != null)
+
+            if (allChannels.isEmpty()) {
+                throw IllegalStateException(
+                    "No YouTube channels found for this Google account."
+                )
+            }
+
+            Handler(Looper.getMainLooper()).post {
+                onResult(allChannels.toList(), null)
+            }
+
+        } catch (e: Exception) {
+            Handler(Looper.getMainLooper()).post {
+                onResult(
+                    null,
+                    e.message ?: "Could not load YouTube channels."
+                )
+            }
         }
     }.start()
 }
