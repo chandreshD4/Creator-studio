@@ -166,6 +166,20 @@ fun KhushalBlogApp() {
     }
 
 
+    val checkBrandToken: (String) -> Unit = { token ->
+        authInProgress = true
+        authMessage = "Testing YouTube channel access..."
+
+        fetchYouTubeChannels(token) { channels, error ->
+            authInProgress = false
+            authMessage = if (channels != null) {
+                "BRAND TEST RESULT: API returned ${channels.size} channel(s): ${channels.joinToString { it.title }}"
+            } else {
+                "BRAND TEST FAILED: ${error ?: "Could not load YouTube channels."}"
+            }
+        }
+    }
+
     val authorizationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
@@ -189,6 +203,30 @@ fun KhushalBlogApp() {
             authMessage = "Google authorization failed (${e.statusCode}). Please try again."
         } catch (e: Exception) {
             authMessage = "Google authorization failed. Please try again."
+        }
+    }
+
+    val brandTestLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        try {
+            val authorizationResult =
+                Identity.getAuthorizationClient(context)
+                    .getAuthorizationResultFromIntent(result.data)
+
+            val token = authorizationResult.accessToken
+            if (!token.isNullOrBlank()) {
+                checkBrandToken(token)
+            } else {
+                authInProgress = false
+                authMessage = "Brand Account test: YouTube permission was not granted."
+            }
+        } catch (e: ApiException) {
+            authInProgress = false
+            authMessage = "Brand Account test failed (${e.statusCode})."
+        } catch (e: Exception) {
+            authInProgress = false
+            authMessage = "Brand Account test failed. Please try again."
         }
     }
 
@@ -246,6 +284,51 @@ fun KhushalBlogApp() {
             .addOnFailureListener {
                 authInProgress = false
                 authMessage = "Google authorization failed. Please try again."
+            }
+    }
+
+    val testBrandAccount: () -> Unit = {
+        authInProgress = true
+        authMessage = "Starting YouTube-only Brand Account test..."
+
+        val request = AuthorizationRequest.builder()
+            .setRequestedScopes(
+                listOf(
+                    Scope("https://www.googleapis.com/auth/youtube.upload"),
+                    Scope("https://www.googleapis.com/auth/youtube.readonly")
+                )
+            )
+            .setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT)
+            .build()
+
+        Identity.getAuthorizationClient(context)
+            .authorize(request)
+            .addOnSuccessListener { authorizationResult ->
+                if (authorizationResult.hasResolution()) {
+                    val pendingIntent = authorizationResult.pendingIntent
+                    if (pendingIntent != null) {
+                        brandTestLauncher.launch(
+                            IntentSenderRequest.Builder(
+                                pendingIntent.intentSender
+                            ).build()
+                        )
+                    } else {
+                        authInProgress = false
+                        authMessage = "Brand Account test could not be started."
+                    }
+                } else {
+                    val token = authorizationResult.accessToken
+                    if (!token.isNullOrBlank()) {
+                        checkBrandToken(token)
+                    } else {
+                        authInProgress = false
+                        authMessage = "YouTube did not provide permission."
+                    }
+                }
+            }
+            .addOnFailureListener {
+                authInProgress = false
+                authMessage = "Brand Account test authorization failed."
             }
     }
 
@@ -326,6 +409,7 @@ fun KhushalBlogApp() {
                     authInProgress = authInProgress,
                     authMessage = authMessage,
                     onConnect = connectGoogleAccount,
+                    onBrandTest = testBrandAccount,
                     onDisconnect = disconnectGoogleAccount,
                     onBack = { showAccountDashboard = false }
                 )
@@ -646,6 +730,7 @@ private fun AccountDashboardPage(
     authInProgress: Boolean,
     authMessage: String,
     onConnect: () -> Unit,
+    onBrandTest: () -> Unit,
     onDisconnect: (String) -> Unit,
     onBack: () -> Unit
 ) {
@@ -699,6 +784,17 @@ private fun AccountDashboardPage(
         }
 
         Spacer(Modifier.height(12.dp))
+
+        TextButton(
+            onClick = onBrandTest,
+            enabled = !authInProgress
+        ) {
+            Text(
+                if (isGujarati) "ટેસ્ટ Brand Account" else "Test Brand Account",
+                color = Blue,
+                fontSize = 13.sp
+            )
+        }
 
         if (accounts.isEmpty()) {
             Card(
