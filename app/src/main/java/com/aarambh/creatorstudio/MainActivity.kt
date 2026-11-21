@@ -166,6 +166,30 @@ fun KhushalBlogApp() {
     }
 
 
+    val loadAccountFromWorker: (String) -> Unit = { authCode ->
+        authInProgress = true
+        authMessage = "Connecting account through secure server..."
+
+        exchangeAuthCodeWithWorker(authCode) { account, error ->
+            authInProgress = false
+
+            if (account != null) {
+                youtubeAccounts = youtubeAccounts
+                    .filterNot { it.email.equals(account.email, ignoreCase = true) } + account
+
+                if (selectedChannelKey == null) {
+                    selectedChannelKey = account.channels.firstOrNull()?.let {
+                        "${account.email.lowercase()}|${it.id}"
+                    }
+                }
+
+                authMessage = "Connected. ${account.channels.size} channel(s): ${account.channels.joinToString { it.title }}"
+            } else {
+                authMessage = error ?: "Could not connect account through server."
+            }
+        }
+    }
+
     val checkBrandToken: (String) -> Unit = { token ->
         authInProgress = true
         authMessage = "Testing YouTube channel access..."
@@ -189,14 +213,14 @@ fun KhushalBlogApp() {
                 Identity.getAuthorizationClient(context)
                     .getAuthorizationResultFromIntent(result.data)
 
-            val token = authorizationResult.accessToken
-            if (!token.isNullOrBlank()) {
-                loadGoogleAccount(token)
+            val authCode = authorizationResult.serverAuthCode
+            if (!authCode.isNullOrBlank()) {
+                loadAccountFromWorker(authCode)
             } else {
                 authMessage = if (isGujarati) {
                     "પરવાનગી મળી નથી. ફરી પ્રયાસ કરો."
                 } else {
-                    "Permission was not granted. Please try again."
+                    "Google did not provide a server authorization code. Please try again."
                 }
             }
         } catch (e: ApiException) {
@@ -253,6 +277,10 @@ fun KhushalBlogApp() {
                         Scope("https://www.googleapis.com/auth/userinfo.email")
                 )
             )
+
+            .requestOfflineAccess(
+                "153042329141-qsbe64cvok7hfhui3j7j22faru3h4psf.apps.googleusercontent.com"
+            )
             .setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT)
             .build()
 
@@ -272,12 +300,12 @@ fun KhushalBlogApp() {
                         authMessage = "Google authorization could not be started."
                     }
                 } else {
-                    authInProgress = false
-                    val token = authorizationResult.accessToken
-                    if (!token.isNullOrBlank()) {
-                        loadGoogleAccount(token)
+                    val authCode = authorizationResult.serverAuthCode
+                    if (!authCode.isNullOrBlank()) {
+                        loadAccountFromWorker(authCode)
                     } else {
-                        authMessage = "Google did not provide permission."
+                        authInProgress = false
+                        authMessage = "Google did not provide a server authorization code."
                     }
                 }
             }
@@ -992,8 +1020,141 @@ private data class YouTubeChannelInfo(
 private data class YouTubeAccountInfo(
     val email: String,
     val accessToken: String,
-    val channels: List<YouTubeChannelInfo>
+    val channels: List<YouTubeChannelInfo>,
+    val sessionToken: String = ""
 )
+
+private fun exchangeAuthCodeWithWorker(
+    authCode: String,
+    onResult: (YouTubeAccountInfo?, String?) -> Unit
+) {
+    Thread {
+        var connection: HttpURLConnection? = null
+
+        try {
+            connection = URL(
+                "https://khushal-blog-oauth.rajputchandresh163pc1.workers.dev/authcode"
+            ).openConnection() as HttpURLConnection
+
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.connectTimeout = 20000
+            connection.readTimeout = 20000
+
+            connection.setRequestProperty(
+                "Content-Type",
+                "application/json"
+            )
+            connection.setRequestProperty(
+                "X-Requested-With",
+                "XMLHttpRequest"
+            )
+
+            val requestBody = JSONObject()
+                .put("authCode", authCode)
+                .toString()
+
+            connection.outputStream.use { output ->
+                output.write(requestBody.toByteArray(Charsets.UTF_8))
+            }
+
+            val responseCode = connection.responseCode
+
+            val responseStream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
+
+            val responseText = responseStream
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                ?: ""
+
+            val json = JSONObject(responseText)
+
+            if (responseCode !in 200..299 ||
+                !json.optBoolean("success", false)
+            ) {
+                val errorText = json.optString("error")
+                    .ifBlank {
+                        "Worker authorization failed ($responseCode)."
+                    }
+
+                throw IllegalStateException(errorText)
+            }
+
+            val sessionToken = json.optString("sessionToken")
+                .takeIf { it.isNotBlank() }
+                ?: throw IllegalStateException(
+                    "Worker did not return a session token."
+                )
+
+            val accountJson = json.optJSONObject("account")
+                ?: JSONObject()
+
+            val email = accountJson.optString("email")
+                .takeIf { it.isNotBlank() }
+                ?: throw IllegalStateException(
+                    "Worker did not return the Google account email."
+                )
+
+            val channelArray = json.optJSONArray("channels")
+                ?: throw IllegalStateException(
+                    "Worker did not return a channel list."
+                )
+
+            val channels = mutableListOf<YouTubeChannelInfo>()
+
+            for (index in 0 until channelArray.length()) {
+                val item = channelArray.optJSONObject(index)
+                    ?: continue
+
+                val channelId = item.optString("id")
+                    val channelTitle = item.optString("title")
+
+                if (channelId.isNotBlank() &&
+                    channelTitle.isNotBlank()
+                ) {
+                    channels.add(
+                        YouTubeChannelInfo(
+                            id = channelId,
+                            title = channelTitle,
+                            thumbnailUrl = item.optString("thumbnailUrl")
+                                .takeIf { it.isNotBlank() }
+                        )
+                    )
+                }
+            }
+
+            if (channels.isEmpty()) {
+                throw IllegalStateException(
+                    "Worker returned no YouTube channels."
+                )
+            }
+
+            val account = YouTubeAccountInfo(
+                email = email,
+                accessToken = "",
+                channels = channels,
+                sessionToken = sessionToken
+            )
+
+            Handler(Looper.getMainLooper()).post {
+                onResult(account, null)
+            }
+        } catch (e: Exception) {
+            Handler(Looper.getMainLooper()).post {
+                onResult(
+                    null,
+                    e.message ?: "Could not connect to the Worker."
+                )
+            }
+        } finally {
+            connection?.disconnect()
+        }
+    }.start()
+}
 
 private fun fetchGoogleAccount(
     accessToken: String,
