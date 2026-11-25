@@ -149,13 +149,10 @@ fun KhushalBlogApp() {
             authInProgress = false
 
             if (account != null) {
-                youtubeAccounts = youtubeAccounts
-                    .filterNot { it.email.equals(account.email, ignoreCase = true) } + account
+                youtubeAccounts = listOf(account)
 
-                if (selectedChannelKey == null) {
-                    selectedChannelKey = account.channels.firstOrNull()?.let {
-                        "${account.email.lowercase()}|${it.id}"
-                    }
+                selectedChannelKey = account.channels.firstOrNull()?.let {
+                    "${account.email.lowercase()}|${it.id}"
                 }
 
                 authMessage = "DEBUG: API returned ${account.channels.size} channel(s): ${account.channels.joinToString { it.title }}"
@@ -174,32 +171,15 @@ fun KhushalBlogApp() {
             authInProgress = false
 
             if (account != null) {
-                youtubeAccounts = youtubeAccounts
-                    .filterNot { it.email.equals(account.email, ignoreCase = true) } + account
+                youtubeAccounts = listOf(account)
 
-                if (selectedChannelKey == null) {
-                    selectedChannelKey = account.channels.firstOrNull()?.let {
-                        "${account.email.lowercase()}|${it.id}"
-                    }
+                selectedChannelKey = account.channels.firstOrNull()?.let {
+                    "${account.email.lowercase()}|${it.id}"
                 }
 
                 authMessage = "Connected. ${account.channels.size} channel(s): ${account.channels.joinToString { it.title }}"
             } else {
                 authMessage = error ?: "Could not connect account through server."
-            }
-        }
-    }
-
-    val checkBrandToken: (String) -> Unit = { token ->
-        authInProgress = true
-        authMessage = "Testing YouTube channel access..."
-
-        fetchYouTubeChannels(token) { channels, error ->
-            authInProgress = false
-            authMessage = if (channels != null) {
-                "BRAND TEST RESULT: API returned ${channels.size} channel(s): ${channels.joinToString { it.title }}"
-            } else {
-                "BRAND TEST FAILED: ${error ?: "Could not load YouTube channels."}"
             }
         }
     }
@@ -230,30 +210,6 @@ fun KhushalBlogApp() {
         }
     }
 
-    val brandTestLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        try {
-            val authorizationResult =
-                Identity.getAuthorizationClient(context)
-                    .getAuthorizationResultFromIntent(result.data)
-
-            val token = authorizationResult.accessToken
-            if (!token.isNullOrBlank()) {
-                checkBrandToken(token)
-            } else {
-                authInProgress = false
-                authMessage = "Brand Account test: YouTube permission was not granted."
-            }
-        } catch (e: ApiException) {
-            authInProgress = false
-            authMessage = "Brand Account test failed (${e.statusCode})."
-        } catch (e: Exception) {
-            authInProgress = false
-            authMessage = "Brand Account test failed. Please try again."
-        }
-    }
-
     val videoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -274,7 +230,7 @@ fun KhushalBlogApp() {
                 listOf(
                     Scope("https://www.googleapis.com/auth/youtube.upload"),
                     Scope("https://www.googleapis.com/auth/youtube.readonly"),
-                        Scope("https://www.googleapis.com/auth/userinfo.email")
+            Scope("https://www.googleapis.com/auth/userinfo.email"),
                 )
             )
 
@@ -312,51 +268,6 @@ fun KhushalBlogApp() {
             .addOnFailureListener {
                 authInProgress = false
                 authMessage = "Google authorization failed. Please try again."
-            }
-    }
-
-    val testBrandAccount: () -> Unit = {
-        authInProgress = true
-        authMessage = "Starting YouTube-only Brand Account test..."
-
-        val request = AuthorizationRequest.builder()
-            .setRequestedScopes(
-                listOf(
-                    Scope("https://www.googleapis.com/auth/youtube.upload"),
-                    Scope("https://www.googleapis.com/auth/youtube.readonly")
-                )
-            )
-            .setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT)
-            .build()
-
-        Identity.getAuthorizationClient(context)
-            .authorize(request)
-            .addOnSuccessListener { authorizationResult ->
-                if (authorizationResult.hasResolution()) {
-                    val pendingIntent = authorizationResult.pendingIntent
-                    if (pendingIntent != null) {
-                        brandTestLauncher.launch(
-                            IntentSenderRequest.Builder(
-                                pendingIntent.intentSender
-                            ).build()
-                        )
-                    } else {
-                        authInProgress = false
-                        authMessage = "Brand Account test could not be started."
-                    }
-                } else {
-                    val token = authorizationResult.accessToken
-                    if (!token.isNullOrBlank()) {
-                        checkBrandToken(token)
-                    } else {
-                        authInProgress = false
-                        authMessage = "YouTube did not provide permission."
-                    }
-                }
-            }
-            .addOnFailureListener {
-                authInProgress = false
-                authMessage = "Brand Account test authorization failed."
             }
     }
 
@@ -432,12 +343,10 @@ fun KhushalBlogApp() {
                 AccountDashboardPage(
                     isGujarati = isGujarati,
                     accounts = youtubeAccounts,
-                    selectedChannelKey = selectedChannelKey,
-                    onSelectChannel = { key -> selectedChannelKey = key },
                     authInProgress = authInProgress,
                     authMessage = authMessage,
                     onConnect = connectGoogleAccount,
-                    onBrandTest = testBrandAccount,
+
                     onDisconnect = disconnectGoogleAccount,
                     onBack = { showAccountDashboard = false }
                 )
@@ -753,28 +662,14 @@ private fun HomePage(
 private fun AccountDashboardPage(
     isGujarati: Boolean,
     accounts: List<YouTubeAccountInfo>,
-    selectedChannelKey: String?,
-    onSelectChannel: (String) -> Unit,
     authInProgress: Boolean,
     authMessage: String,
     onConnect: () -> Unit,
-    onBrandTest: () -> Unit,
     onDisconnect: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    val activeAccount = accounts.firstOrNull { account ->
-        account.channels.any { channel ->
-            "${account.email.lowercase()}|${channel.id}" == selectedChannelKey
-        }
-    } ?: accounts.firstOrNull()
-
-    val orderedAccounts = if (activeAccount == null) {
-        emptyList()
-    } else {
-        listOf(activeAccount) + accounts.filterNot {
-            it.email.equals(activeAccount.email, ignoreCase = true)
-        }
-    }
+    val account = accounts.firstOrNull()
+    val channel = account?.channels?.firstOrNull()
 
     Column(
         modifier = Modifier
@@ -791,10 +686,10 @@ private fun AccountDashboardPage(
             }
 
             Text(
-                "Accounts",
+                if (isGujarati) "તમારી YouTube ચેનલ" else "Your YouTube Channel",
                 modifier = Modifier.weight(1f),
                 color = White,
-                fontSize = 23.sp,
+                fontSize = 21.sp,
                 fontWeight = FontWeight.Bold
             )
 
@@ -803,203 +698,163 @@ private fun AccountDashboardPage(
                 enabled = !authInProgress
             ) {
                 Text(
-                    if (authInProgress) "…" else "+",
+                    if (authInProgress) "…" else if (account == null) "Connect" else "Change",
                     color = Pink,
-                    fontSize = 30.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
 
-        TextButton(
-            onClick = onBrandTest,
-            enabled = !authInProgress
-        ) {
-            Text(
-                if (isGujarati) "ટેસ્ટ Brand Account" else "Test Brand Account",
-                color = Blue,
-                fontSize = 13.sp
-            )
-        }
-
-        if (accounts.isEmpty()) {
+        if (account == null) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = CardBackground
-                ),
-                shape = RoundedCornerShape(14.dp)
+                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                shape = RoundedCornerShape(18.dp)
             ) {
-                Text(
-                    if (isGujarati) {
-                        "Google એકાઉન્ટ ઉમેરવા ઉપરના + બટન પર ટેપ કરો."
-                    } else {
-                        "Tap the + button above to add a Google account and see its YouTube channels."
-                    },
-                    color = Muted,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        } else {
-            orderedAccounts.forEachIndexed { index, account ->
-
-                if (index == 1) {
-                    Spacer(Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
-                        if (isGujarati) "અન્ય એકાઉન્ટ્સ" else "Other accounts",
+                        if (isGujarati) "Google એકાઉન્ટ જોડો" else "Connect your Google account",
                         color = White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(Modifier.height(10.dp))
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Text(
+                        if (isGujarati) {
+                            "તમારી YouTube ચેનલ જોવા માટે Google એકાઉન્ટ પસંદ કરો."
+                        } else {
+                            "Choose your Google account to view your YouTube channel."
+                        },
+                        color = Muted,
+                        fontSize = 14.sp
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    TextButton(
+                        onClick = onConnect,
+                        enabled = !authInProgress
+                    ) {
+                        Text(
+                            if (authInProgress) "Connecting…" else "Connect Google",
+                            color = Pink,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
-
-                Text(
-                    account.email,
-                    color = White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = CardBackground
-                    ),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Column(Modifier.padding(10.dp)) {
-
-                        if (account.channels.isEmpty()) {
-                            Text(
-                                if (isGujarati) {
-                                    "આ એકાઉન્ટમાં કોઈ ચેનલ મળી નથી."
-                                } else {
-                                    "No YouTube channels found for this account."
-                                },
-                                color = Muted,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(8.dp)
-                            )
-                        }
-
-                        account.channels.forEach { channel ->
-                            val key =
-                                "${account.email.lowercase()}|${channel.id}"
-                            val isActive = key == selectedChannelKey
-
-                            Row(
+            }
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (!channel?.thumbnailUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = channel?.thumbnailUrl,
+                                contentDescription = "YouTube channel image",
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        if (isActive) {
-                                            Color(0x2234C759)
-                                        } else {
-                                            Color.Transparent
-                                        }
-                                    )
-                                    .clickable {
-                                        onSelectChannel(key)
-                                    }
-                                    .padding(9.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .size(72.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF34343D)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                if (!channel.thumbnailUrl.isNullOrBlank()) {
-                                    AsyncImage(
-                                        model = channel.thumbnailUrl,
-                                        contentDescription = "YouTube channel image",
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .clip(CircleShape),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF34343D)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("▶", color = White)
-                                    }
-                                }
-
-                                Spacer(Modifier.width(11.dp))
-
-                                Column(
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(
-                                        channel.title,
-                                        color = White,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-
-                                    Text(
-                                        if (isActive) {
-                                            if (isGujarati) "✓ સક્રિય" else "✓ ACTIVE"
-                                        } else {
-                                            if (isGujarati) {
-                                                "ચેનલ બદલવા ટેપ કરો"
-                                            } else {
-                                                "Tap to switch channel"
-                                            }
-                                        },
-                                        color = if (isActive) {
-                                            Color(0xFF4CAF50)
-                                        } else {
-                                            Muted
-                                        },
-                                        fontSize = 11.sp
-                                    )
-                                }
-
-                                if (isActive) {
-                                    Text(
-                                        "✓",
-                                        color = Color(0xFF4CAF50),
-                                        fontSize = 22.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
+                                Text("▶", color = White, fontSize = 26.sp)
                             }
-
-                            Spacer(Modifier.height(3.dp))
                         }
 
-                        TextButton(
-                            onClick = {
-                                onDisconnect(account.email)
-                            },
-                            enabled = !authInProgress
-                        ) {
+                        Spacer(Modifier.width(14.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                if (isGujarati) {
-                                    "એકાઉન્ટ ડિસ્કનેક્ટ કરો"
-                                } else {
-                                    "Disconnect account"
-                                },
-                                color = Color(0xFFFF7777),
+                                channel?.title
+                                    ?: if (isGujarati) "ચેનલ મળી નથી" else "Channel not found",
+                                color = White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(Modifier.height(5.dp))
+
+                            Text(
+                                account.email,
+                                color = Muted,
                                 fontSize = 12.sp
+                            )
+
+                            Spacer(Modifier.height(7.dp))
+
+                            Text(
+                                if (channel != null) {
+                                    if (isGujarati) "✓ જોડાયેલ ચેનલ" else "✓ Connected channel"
+                                } else {
+                                    if (isGujarati) {
+                                        "આ એકાઉન્ટમાં ચેનલ મળી નથી."
+                                    } else {
+                                        "No YouTube channel was returned for this account."
+                                    }
+                                },
+                                color = if (channel != null) Color(0xFF4CAF50) else Muted,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
-                }
 
-                Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(18.dp))
+
+                    Divider(color = Color(0x22FFFFFF))
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Text(
+                        if (isGujarati) {
+                            "આ એપ હાલમાં એક Google એકાઉન્ટ અને તેની પ્રથમ મળેલી YouTube ચેનલનો ઉપયોગ કરે છે."
+                        } else {
+                            "This app currently uses one Google account and the first YouTube channel returned for it."
+                        },
+                        color = Muted,
+                        fontSize = 13.sp
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    TextButton(
+                        onClick = { onDisconnect(account.email) },
+                        enabled = !authInProgress
+                    ) {
+                        Text(
+                            if (isGujarati) "Google એકાઉન્ટ ડિસ્કનેક્ટ કરો" else "Disconnect Google account",
+                            color = Color(0xFFFF7777),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
             }
         }
 
         if (authMessage.isNotBlank()) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(14.dp))
             Text(
                 authMessage,
                 color = Muted,
