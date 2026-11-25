@@ -247,6 +247,37 @@ fun KhushalBlogApp() {
             }
     }
 
+    LaunchedEffect(Unit) {
+        authInProgress = true
+        val reconnectRequest = AuthorizationRequest.builder()
+            .setRequestedScopes(
+                listOf(
+                    Scope("https://www.googleapis.com/auth/youtube.upload"),
+                    Scope("https://www.googleapis.com/auth/youtube.readonly"),
+                    Scope("https://www.googleapis.com/auth/userinfo.email")
+                )
+            )
+            .build()
+
+        Identity.getAuthorizationClient(context)
+            .authorize(reconnectRequest)
+            .addOnSuccessListener { result ->
+                if (!result.hasResolution()) {
+                    val token = result.accessToken
+                    if (!token.isNullOrBlank()) {
+                        loadGoogleAccount(token)
+                    } else {
+                        authInProgress = false
+                    }
+                } else {
+                    authInProgress = false
+                }
+            }
+            .addOnFailureListener {
+                authInProgress = false
+            }
+    }
+
     val disconnectGoogleAccount: (String) -> Unit = { email ->
         val account = youtubeAccounts.firstOrNull {
             it.email.equals(email, ignoreCase = true)
