@@ -155,7 +155,7 @@ fun KhushalBlogApp() {
                     "${account.email.lowercase()}|${it.id}"
                 }
 
-                authMessage = "DEBUG: API returned ${account.channels.size} channel(s): ${account.channels.joinToString { it.title }}"
+                authMessage = "Google account connected successfully."
             } else {
                 authMessage = error ?: "Could not load Google account."
             }
@@ -193,14 +193,14 @@ fun KhushalBlogApp() {
                 Identity.getAuthorizationClient(context)
                     .getAuthorizationResultFromIntent(result.data)
 
-            val authCode = authorizationResult.serverAuthCode
-            if (!authCode.isNullOrBlank()) {
-                loadAccountFromWorker(authCode)
+            val accessToken = authorizationResult.accessToken
+            if (!accessToken.isNullOrBlank()) {
+                loadGoogleAccount(accessToken)
             } else {
                 authMessage = if (isGujarati) {
                     "પરવાનગી મળી નથી. ફરી પ્રયાસ કરો."
                 } else {
-                    "Google did not provide a server authorization code. Please try again."
+                    "Google did not provide an access token. Please try again."
                 }
             }
         } catch (e: ApiException) {
@@ -234,9 +234,6 @@ fun KhushalBlogApp() {
                 )
             )
 
-            .requestOfflineAccess(
-                "153042329141-qsbe64cvok7hfhui3j7j22faru3h4psf.apps.googleusercontent.com"
-            )
             .setPrompt(AuthorizationRequest.Prompt.SELECT_ACCOUNT)
             .build()
 
@@ -256,12 +253,12 @@ fun KhushalBlogApp() {
                         authMessage = "Google authorization could not be started."
                     }
                 } else {
-                    val authCode = authorizationResult.serverAuthCode
-                    if (!authCode.isNullOrBlank()) {
-                        loadAccountFromWorker(authCode)
+                    val accessToken = authorizationResult.accessToken
+                    if (!accessToken.isNullOrBlank()) {
+                        loadGoogleAccount(accessToken)
                     } else {
                         authInProgress = false
-                        authMessage = "Google did not provide a server authorization code."
+                        authMessage = "Google did not provide an access token."
                     }
                 }
             }
